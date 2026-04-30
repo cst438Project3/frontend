@@ -2,16 +2,23 @@ import { useState } from "react";
 import {
   View,
   Text,
-  StyleSheet,
-  TouchableOpacity,
-  TextInput,
   StatusBar,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  TouchableOpacity,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
+import { router } from "expo-router";
+
+import { Button, ButtonText } from "../components/ui/button";
+import { Input, InputField } from "../components/ui/input";
+import { Box } from "../components/ui/box";
+import { VStack } from "../components/ui/vstack";
+import { HStack } from "../components/ui/hstack";
+import { Center } from "../components/ui/center";
+import { Divider } from "../components/ui/divider";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
@@ -20,367 +27,289 @@ export default function LoginScreen() {
 
   const handleEmailLogin = () => {
     // TODO: wire up email/password auth
+    // placeholder route 
+    router.replace("/dashboard");
   };
 
   const handleGoogleSignIn = () => {
-    // TODO: wire up Google OAuth here
+    // TODO:  Google OAuth here
   };
 
   const handleGithubSignIn = () => {
-    // TODO: wire up GitHub OAuth here
-  };
-
-  const handleForgotPassword = () => {
-    // TODO: navigate to forgot password screen
+    // TODO: GitHub OAuth here
   };
 
   const handleSignUp = () => {
-    // TODO: navigate to sign up screen
+    router.push("/signup");
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#0a0a0a" }}>
       <StatusBar barStyle="light-content" />
 
       <LinearGradient
         colors={["#0a0a0a", "#1a0533", "#0d0d0d"]}
-        style={StyleSheet.absoluteFillObject}
+        style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
       />
 
-      <View style={styles.circleTopRight} />
-      <View style={styles.circleBottomLeft} />
+      <View
+        style={{
+          position: "absolute",
+          width: 300,
+          height: 300,
+          borderRadius: 150,
+          backgroundColor: "rgba(139, 92, 246, 0.2)",
+          top: -80,
+          right: -80,
+        }}
+      />
+      <View
+        style={{
+          position: "absolute",
+          width: 250,
+          height: 250,
+          borderRadius: 125,
+          backgroundColor: "rgba(168, 85, 247, 0.15)",
+          bottom: 40,
+          left: -100,
+        }}
+      />
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         <ScrollView
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={{
+            flexGrow: 1,
+            justifyContent: "center",
+            paddingHorizontal: 28,
+            paddingVertical: 40,
+          }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* This for Title name */}
-          <View style={styles.brandSection}>
-            <View style={styles.logoMark}>
-              <Text style={styles.logoIcon}>⇄</Text>
-            </View>
-            <Text style={styles.appName}>TransferMe</Text>
-            <Text style={styles.tagline}>College Credit Transfer Assistant</Text>
-          </View>
-
-          {/* Form */}
-          <View style={styles.formSection}>
-            <View style={styles.inputWrapper}>
-              <Text style={styles.inputLabel}>Email</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="you@university.edu"
-                placeholderTextColor="rgba(255,255,255,0.2)"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-            </View>
-
-            <View style={styles.inputWrapper}>
-              <View style={styles.labelRow}>
-                <Text style={styles.inputLabel}>Password</Text>
-                <TouchableOpacity onPress={handleForgotPassword}>
-                  <Text style={styles.forgotText}>Forgot password?</Text>
-                </TouchableOpacity>
-              </View>
-              <View style={styles.passwordContainer}>
-                <TextInput
-                  style={[styles.input, styles.passwordInput]}
-                  placeholder="••••••••"
-                  placeholderTextColor="rgba(255,255,255,0.2)"
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry={!passwordVisible}
-                  autoCapitalize="none"
-                />
-                <TouchableOpacity
-                  style={styles.eyeButton}
-                  onPress={() => setPasswordVisible(!passwordVisible)}
+          <VStack space="2xl">
+            <Center>
+              <VStack space="sm" style={{ alignItems: "center" }}>
+                <Center
+                  style={{
+                    width: 64,
+                    height: 64,
+                    borderRadius: 18,
+                    backgroundColor: "rgba(147, 51, 234, 0.25)",
+                    borderWidth: 1,
+                    borderColor: "rgba(147, 51, 234, 0.6)",
+                    marginBottom: 10,
+                  }}
                 >
-                  <Text style={styles.eyeIcon}>
-                    {passwordVisible ? "🙈" : "👁️"}
+                  <Text style={{ fontSize: 28, color: "#c084fc" }}>⇄</Text>
+                </Center>
+
+                <Text
+                  style={{
+                    fontSize: 34,
+                    fontWeight: "800",
+                    color: "#ffffff",
+                    letterSpacing: -1,
+                  }}
+                >
+                  TransferMe
+                </Text>
+
+                <Text
+                  style={{
+                    fontSize: 14,
+                    color: "rgba(255,255,255,0.4)",
+                    textAlign: "center",
+                  }}
+                >
+                  College Credit Transfer Assistant
+                </Text>
+              </VStack>
+            </Center>
+
+            <Box
+              style={{
+                backgroundColor: "rgba(255,255,255,0.04)",
+                borderRadius: 24,
+                padding: 20,
+                borderWidth: 1,
+                borderColor: "rgba(147, 51, 234, 0.18)",
+              }}
+            >
+              <VStack space="lg">
+                <VStack space="xs">
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      fontWeight: "600",
+                      color: "rgba(255,255,255,0.55)",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    Email
                   </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
 
-            <TouchableOpacity
-              style={styles.signInButton}
-              onPress={handleEmailLogin}
-              activeOpacity={0.85}
-            >
-              <LinearGradient
-                colors={["#9333ea", "#7c3aed"]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.signInGradient}
+                  <Input
+                    style={{
+                      borderRadius: 12,
+                      backgroundColor: "rgba(255,255,255,0.05)",
+                      borderColor: "rgba(147, 51, 234, 0.3)",
+                    }}
+                  >
+                    <InputField
+                      placeholder="you@university.edu"
+                      placeholderTextColor="rgba(255,255,255,0.25)"
+                      value={email}
+                      onChangeText={setEmail}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      style={{ color: "#ffffff" }}
+                    />
+                  </Input>
+                </VStack>
+
+                <VStack space="xs">
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      fontWeight: "600",
+                      color: "rgba(255,255,255,0.55)",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    Password
+                  </Text>
+
+                  <Box style={{ position: "relative" }}>
+                    <Input
+                      style={{
+                        borderRadius: 12,
+                        backgroundColor: "rgba(255,255,255,0.05)",
+                        borderColor: "rgba(147, 51, 234, 0.3)",
+                      }}
+                    >
+                      <InputField
+                        placeholder="••••••••"
+                        placeholderTextColor="rgba(255,255,255,0.25)"
+                        value={password}
+                        onChangeText={setPassword}
+                        secureTextEntry={!passwordVisible}
+                        autoCapitalize="none"
+                        style={{ color: "#ffffff", paddingRight: 48 }}
+                      />
+                    </Input>
+
+                    <TouchableOpacity
+                      onPress={() => setPasswordVisible(!passwordVisible)}
+                      style={{
+                        position: "absolute",
+                        right: 14,
+                        top: 0,
+                        bottom: 0,
+                        justifyContent: "center",
+                      }}
+                    >
+                      <Text style={{ fontSize: 16 }}>
+                        {passwordVisible ? "🙈" : "👁️"}
+                      </Text>
+                    </TouchableOpacity>
+                  </Box>
+                </VStack>
+
+                <Button
+                  onPress={handleEmailLogin}
+                  style={{
+                    borderRadius: 14,
+                    backgroundColor: "#9333ea",
+                    height: 54,
+                  }}
+                >
+                  <ButtonText style={{ color: "#ffffff", fontWeight: "700" }}>
+                    Sign In
+                  </ButtonText>
+                </Button>
+              </VStack>
+            </Box>
+
+            <HStack space="md" style={{ alignItems: "center" }}>
+              <Divider
+                style={{
+                  flex: 1,
+                  backgroundColor: "rgba(147, 51, 234, 0.2)",
+                }}
+              />
+              <Text
+                style={{
+                  fontSize: 12,
+                  color: "rgba(255,255,255,0.3)",
+                }}
               >
-                <Text style={styles.signInText}>Sign In</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
+                or continue with
+              </Text>
+              <Divider
+                style={{
+                  flex: 1,
+                  backgroundColor: "rgba(147, 51, 234, 0.2)",
+                }}
+              />
+            </HStack>
 
-          {/* Divider */}
-          <View style={styles.dividerRow}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>or continue with</Text>
-            <View style={styles.dividerLine} />
-          </View>
+            <HStack space="md">
+              <Button
+                variant="outline"
+                onPress={handleGoogleSignIn}
+                style={{
+                  flex: 1,
+                  borderRadius: 12,
+                  backgroundColor: "#ffffff",
+                  borderColor: "#ffffff",
+                  height: 52,
+                }}
+              >
+                <ButtonText style={{ color: "#111111", fontWeight: "600" }}>
+                  Google
+                </ButtonText>
+              </Button>
 
-          {/* OAuth button */}
-          <View style={styles.oauthSection}>
-            <TouchableOpacity
-              style={styles.oauthButton}
-              onPress={handleGoogleSignIn}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.oauthIcon}>G</Text>
-              <Text style={styles.oauthText}>Google</Text>
-            </TouchableOpacity>
+              <Button
+                variant="outline"
+                onPress={handleGithubSignIn}
+                style={{
+                  flex: 1,
+                  borderRadius: 12,
+                  backgroundColor: "#0d0d0d",
+                  borderColor: "rgba(147, 51, 234, 0.35)",
+                  height: 52,
+                }}
+              >
+                <ButtonText style={{ color: "#ffffff", fontWeight: "600" }}>
+                  GitHub
+                </ButtonText>
+              </Button>
+            </HStack>
 
-            <TouchableOpacity
-              style={[styles.oauthButton, styles.oauthButtonDark]}
-              onPress={handleGithubSignIn}
-              activeOpacity={0.85}
-            >
-              <Text style={[styles.oauthIcon, styles.oauthIconDark]}>⌥</Text>
-              <Text style={[styles.oauthText, styles.oauthTextDark]}>GitHub</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Sign up button */}
-          <View style={styles.signUpRow}>
-            <Text style={styles.signUpPrompt}>Don't have an account? </Text>
-            <TouchableOpacity onPress={handleSignUp}>
-              <Text style={styles.signUpLink}>Sign up</Text>
-            </TouchableOpacity>
-          </View>
-
-          <Text style={styles.footerText}>
-            By continuing, you agree to our{" "}
-            <Text style={styles.footerLink}>Terms</Text> &{" "}
-            <Text style={styles.footerLink}>Privacy Policy</Text>
-          </Text>
+            <HStack style={{ justifyContent: "center", alignItems: "center" }}>
+              <Text style={{ fontSize: 14, color: "rgba(255,255,255,0.4)" }}>
+                Don't have an account?{" "}
+              </Text>
+              <TouchableOpacity onPress={handleSignUp}>
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontWeight: "600",
+                    color: "#c084fc",
+                  }}
+                >
+                  Sign up
+                </Text>
+              </TouchableOpacity>
+            </HStack>
+          </VStack>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#0a0a0a",
-  },
-  circleTopRight: {
-    position: "absolute",
-    width: 300,
-    height: 300,
-    borderRadius: 150,
-    backgroundColor: "rgba(139, 92, 246, 0.2)",
-    top: -80,
-    right: -80,
-  },
-  circleBottomLeft: {
-    position: "absolute",
-    width: 250,
-    height: 250,
-    borderRadius: 125,
-    backgroundColor: "rgba(168, 85, 247, 0.15)",
-    bottom: 40,
-    left: -100,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: "center",
-    paddingHorizontal: 32,
-    paddingVertical: 40,
-    gap: 32,
-  },
-  brandSection: {
-    alignItems: "center",
-    gap: 8,
-  },
-  logoMark: {
-    width: 64,
-    height: 64,
-    borderRadius: 18,
-    backgroundColor: "rgba(147, 51, 234, 0.25)",
-    borderWidth: 1,
-    borderColor: "rgba(147, 51, 234, 0.6)",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 10,
-  },
-  logoIcon: {
-    fontSize: 28,
-    color: "#c084fc",
-  },
-  appName: {
-    fontSize: 34,
-    fontWeight: "800",
-    color: "#ffffff",
-    letterSpacing: -1,
-  },
-  tagline: {
-    fontSize: 14,
-    color: "rgba(255,255,255,0.4)",
-    letterSpacing: 0.3,
-  },
-  formSection: {
-    gap: 16,
-  },
-  inputWrapper: {
-    gap: 8,
-  },
-  labelRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  inputLabel: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "rgba(255,255,255,0.55)",
-    letterSpacing: 0.5,
-    textTransform: "uppercase",
-  },
-  forgotText: {
-    fontSize: 13,
-    color: "#c084fc",
-  },
-  input: {
-    backgroundColor: "rgba(255,255,255,0.05)",
-    borderWidth: 1,
-    borderColor: "rgba(147, 51, 234, 0.3)",
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    fontSize: 15,
-    color: "#ffffff",
-  },
-  passwordContainer: {
-    position: "relative",
-  },
-  passwordInput: {
-    paddingRight: 50,
-  },
-  eyeButton: {
-    position: "absolute",
-    right: 14,
-    top: 0,
-    bottom: 0,
-    justifyContent: "center",
-  },
-  eyeIcon: {
-    fontSize: 16,
-  },
-  signInButton: {
-    borderRadius: 14,
-    overflow: "hidden",
-    marginTop: 4,
-    shadowColor: "#9333ea",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.5,
-    shadowRadius: 14,
-    elevation: 8,
-  },
-  signInGradient: {
-    paddingVertical: 16,
-    alignItems: "center",
-  },
-  signInText: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#ffffff",
-    letterSpacing: 0.3,
-  },
-  dividerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: "rgba(147, 51, 234, 0.2)",
-  },
-  dividerText: {
-    fontSize: 12,
-    color: "rgba(255,255,255,0.3)",
-    letterSpacing: 0.5,
-  },
-  oauthSection: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  oauthButton: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    backgroundColor: "#ffffff",
-    borderRadius: 12,
-    paddingVertical: 14,
-    shadowColor: "#9333ea",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  oauthButtonDark: {
-    backgroundColor: "#0d0d0d",
-    borderWidth: 1,
-    borderColor: "rgba(147, 51, 234, 0.35)",
-    shadowColor: "#000",
-  },
-  oauthIcon: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#4285F4",
-  },
-  oauthIconDark: {
-    color: "#c084fc",
-  },
-  oauthText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#111",
-  },
-  oauthTextDark: {
-    color: "#ffffff",
-  },
-  signUpRow: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  signUpPrompt: {
-    fontSize: 14,
-    color: "rgba(255,255,255,0.4)",
-  },
-  signUpLink: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#c084fc",
-  },
-  footerText: {
-    textAlign: "center",
-    fontSize: 11,
-    color: "rgba(255,255,255,0.2)",
-    lineHeight: 18,
-  },
-  footerLink: {
-    color: "rgba(192, 132, 252, 0.6)",
-    textDecorationLine: "underline",
-  },
-});
