@@ -11,6 +11,7 @@ import * as WebBrowser from "expo-web-browser";
 
 import {
   exchangeGoogleTokens,
+  getGoogleAuthUrl as getGoogleAuthUrlRequest,
   getCurrentUser,
   logout as logoutRequest,
   refreshSession,
@@ -31,6 +32,8 @@ type AuthContextValue = {
     accessToken?: string;
     nonce?: string;
   }) => Promise<void>;
+  signInWithSession: (session: AuthSession) => Promise<void>;
+  getGoogleAuthUrl: () => Promise<string>;
   logout: () => Promise<void>;
 };
 
@@ -132,6 +135,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  const signInWithSession = useCallback(async (nextSession: AuthSession) => {
+    const nextUser = await getCurrentUser(nextSession.accessToken);
+
+    setSession(nextSession);
+    setUser(nextUser);
+    await persistState({ session: nextSession, user: nextUser });
+  }, []);
+
+  const getGoogleAuthUrl = useCallback(async () => {
+    const response = await getGoogleAuthUrlRequest();
+    return response.url;
+  }, []);
+
   const logout = useCallback(async () => {
     const accessToken = session?.accessToken;
 
@@ -157,9 +173,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       session,
       user,
       signInWithGoogleTokens,
+      signInWithSession,
+      getGoogleAuthUrl,
       logout,
     }),
-    [isLoading, logout, session, signInWithGoogleTokens, user],
+    [
+      getGoogleAuthUrl,
+      isLoading,
+      logout,
+      session,
+      signInWithGoogleTokens,
+      signInWithSession,
+      user,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

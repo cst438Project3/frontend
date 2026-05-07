@@ -59,6 +59,10 @@ export function exchangeGoogleTokens(payload: {
   });
 }
 
+export function getGoogleAuthUrl() {
+  return requestJson<{ url: string }>("/api/auth/google/url");
+}
+
 export function refreshSession(refreshToken: string) {
   return requestJson<AuthSession>("/api/auth/refresh", {
     method: "POST",

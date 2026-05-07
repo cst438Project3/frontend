@@ -6,10 +6,10 @@ Expo frontend for TransferMe.
 
 This branch now matches the backend's Supabase-backed Google auth flow:
 
-1. the app opens Google sign-in with Expo Auth Session
-2. Google returns an `id_token` on the client
-3. the app posts that token to `POST /api/auth/google/exchange`
-4. the backend returns a Supabase access token and refresh token
+1. web opens the backend's `GET /api/auth/google/url` Supabase login URL
+2. Supabase redirects back to `/auth/callback` with session tokens
+3. mobile opens Google sign-in with Expo Auth Session
+4. mobile posts the Google `id_token` to `POST /api/auth/google/exchange`
 5. the app stores the session locally and calls backend APIs with `Authorization: Bearer <supabase-jwt>`
 
 The frontend also restores saved sessions on launch and refreshes them through `POST /api/auth/refresh` when needed.
@@ -31,6 +31,7 @@ Notes:
 - `EXPO_PUBLIC_API_BASE_URL` should point at the backend repo running on its `google-oauth2` branch.
 - `EXPO_PUBLIC_GOOGLE_CLIENT_ID` is a useful fallback when you do not yet have separate native client IDs configured.
 - the app uses the `transferme://oauthredirect` redirect scheme on native.
+- for local web auth, the backend should use `APP_AUTH_WEB_REDIRECT_URL=http://localhost:8081/auth/callback`
 
 ## Run
 
@@ -44,6 +45,7 @@ npx expo start
 Wired up:
 
 - Google sign-in
+- web OAuth callback handling
 - backend token exchange
 - session restore and refresh
 - protected landing routes

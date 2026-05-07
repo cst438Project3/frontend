@@ -27,7 +27,12 @@ import { useAuth } from "@/src/auth/AuthContext";
 import { authConfig, hasGoogleClientId } from "@/src/auth/config";
 
 export default function LoginScreen() {
-  const { isAuthenticated, isLoading, signInWithGoogleTokens } = useAuth();
+  const {
+    getGoogleAuthUrl,
+    isAuthenticated,
+    isLoading,
+    signInWithGoogleTokens,
+  } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordVisible, setPasswordVisible] = useState(false);
@@ -55,6 +60,8 @@ export default function LoginScreen() {
       path: "oauthredirect",
     },
   );
+  const isGoogleButtonDisabled =
+    isLoading || isGoogleSigningIn || (Platform.OS !== "web" && !request);
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
@@ -111,6 +118,20 @@ export default function LoginScreen() {
   };
 
   const handleGoogleSignIn = async () => {
+    if (Platform.OS === "web") {
+      try {
+        const url = await getGoogleAuthUrl();
+        window.location.assign(url);
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Unable to start Google sign-in.";
+        Alert.alert("Sign-in failed", message);
+      }
+      return;
+    }
+
     if (!hasGoogleClientId) {
       Alert.alert(
         "Missing Google OAuth config",
@@ -361,14 +382,14 @@ export default function LoginScreen() {
               <Button
                 variant="outline"
                 onPress={() => void handleGoogleSignIn()}
-                isDisabled={isLoading || isGoogleSigningIn || !request}
+                isDisabled={isGoogleButtonDisabled}
                 style={{
                   flex: 1,
                   borderRadius: 12,
                   backgroundColor: "#ffffff",
                   borderColor: "#ffffff",
                   height: 52,
-                  opacity: isLoading || isGoogleSigningIn || !request ? 0.7 : 1,
+                  opacity: isGoogleButtonDisabled ? 0.7 : 1,
                 }}
               >
                 <HStack space="sm" style={{ alignItems: "center" }}>
