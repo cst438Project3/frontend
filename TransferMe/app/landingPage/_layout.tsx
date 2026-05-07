@@ -14,7 +14,7 @@ const NAV_ITEMS = [
   { icon: "⊞", label: "Home", route: "/landingPage" },
   { icon: "📋", label: "My Transfer Plans", route: "/landingPage/transferPlan" },
   { icon: "🔍", label: "Credit Transfer Search", route: "/landingPage/search" },
-  { icon: "⇄", label: "Equivalencies", route: "/landingPage/Equivlances" },
+  { icon: "⇄", label: "Equivalencies", route: "/landingPage/equivalencies" },
   { icon: "⚙️", label: "Settings", route: "/landingPage/settings" },
 ];
 
@@ -100,7 +100,7 @@ function BottomTabBar({ pathname }: { pathname: string }) {
     { icon: "⊞", label: "Home", route: "/landingPage" },
     { icon: "📋", label: "Plans", route: "/landingPage/transferPlan" },
     { icon: "🔍", label: "Search", route: "/landingPage/search" },
-    { icon: "⇄", label: "Equiv.", route: "/landingPage/Equivlances" },
+    { icon: "⇄", label: "Equiv.", route: "/landingPage/equivalencies" },
     { icon: "⚙️", label: "Settings", route: "/landingPage/settings" },
   ];
 
@@ -181,7 +181,7 @@ function MobileHeader({ displayName }: { displayName: string }) {
         <Box className="w-7 h-7 rounded-full bg-purple-600 items-center justify-center">
           <Text className="text-xs font-bold text-white">{displayName.charAt(0)}</Text>
         </Box>
-        <Text className="text-sm font-semibold text-white">{displayName}</Text>
+        <Text className="text-sm font-semibold text-white">John Pork</Text>
         <Text className="text-xs text-purple-400">▾</Text>
       </Pressable>
     </HStack>
