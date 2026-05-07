@@ -28,7 +28,7 @@ export default function LoginScreen() {
   const handleEmailLogin = () => {
     // TODO: wire up email/password auth
     // placeholder route 
-    router.replace("/dashboard");
+    router.replace("/landingPage");
   };
 
   const handleGoogleSignIn = () => {
