@@ -27,7 +27,9 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const { signInWithGoogle, isAuthenticated, isBootstrapping } = useAuth();
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [loginError, setLoginError] = useState("");
+  const { signInWithGoogle, signInWithLocal, isAuthenticated, isBootstrapping } = useAuth();
 
   useEffect(() => {
     if (!isBootstrapping && isAuthenticated) {
@@ -35,10 +37,23 @@ export default function LoginScreen() {
     }
   }, [isAuthenticated, isBootstrapping]);
 
-  const handleEmailLogin = () => {
-    // TODO: wire up email/password auth
-    // placeholder route 
-    router.replace("/landingPage");
+  const handleEmailLogin = async () => {
+    if (!email.trim()) {
+      setLoginError("Please enter your email.");
+      return;
+    }
+    setLoginError("");
+    setLoginLoading(true);
+    try {
+      await signInWithLocal(email.trim());
+      router.replace("/landingPage");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Sign-in failed. Please try again.";
+      setLoginError(message);
+    } finally {
+      setLoginLoading(false);
+    }
   };
 
   const handleGoogleSignIn = async () => {
@@ -241,8 +256,15 @@ export default function LoginScreen() {
                   </Box>
                 </VStack>
 
+                {loginError ? (
+                  <Text style={{ color: "#f87171", fontSize: 13, textAlign: "center" }}>
+                    {loginError}
+                  </Text>
+                ) : null}
+
                 <Button
                   onPress={handleEmailLogin}
+                  isDisabled={loginLoading}
                   style={{
                     borderRadius: 14,
                     backgroundColor: "#9333ea",
@@ -250,7 +272,7 @@ export default function LoginScreen() {
                   }}
                 >
                   <ButtonText style={{ color: "#ffffff", fontWeight: "700" }}>
-                    Sign In
+                    {loginLoading ? "Signing In..." : "Sign In"}
                   </ButtonText>
                 </Button>
               </VStack>

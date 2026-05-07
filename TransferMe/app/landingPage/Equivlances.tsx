@@ -7,7 +7,12 @@ import { Text } from "@/components/ui/text";
 import { HStack } from "@/components/ui/hstack";
 import { VStack } from "@/components/ui/vstack";
 import { useState } from "react";
-import { getTransferPlans, TransferPlan } from "@/src/lib/transfer-storage";
+import {
+  getSavedClasses,
+  getTransferPlans,
+  SavedClass,
+  TransferPlan,
+} from "@/src/lib/transfer-storage";
 
 type EquivalencyClass = {
   code: string;
@@ -18,17 +23,43 @@ type EquivalencyClass = {
 };
 
 export default function EquivlancesScreen() {
+  const [savedClasses, setSavedClasses] = useState<SavedClass[]>([]);
   const [plans, setPlans] = useState<TransferPlan[]>([]);
   const { width } = useWindowDimensions();
 
   useFocusEffect(
     useCallback(() => {
-      getTransferPlans().then(setPlans);
+      Promise.all([getSavedClasses(), getTransferPlans()]).then(
+        ([classes, transferPlans]) => {
+          setSavedClasses(classes);
+          setPlans(transferPlans);
+        }
+      );
     }, [])
   );
 
   const classesBySchool = useMemo(() => {
     const map = new Map<string, Map<string, EquivalencyClass>>();
+
+    savedClasses.forEach((item) => {
+      const school = item.sourceCollege || "Unknown School";
+      const classKey = `${item.code}|${item.title}`;
+
+      if (!map.has(school)) {
+        map.set(school, new Map<string, EquivalencyClass>());
+      }
+
+      const schoolMap = map.get(school)!;
+      if (!schoolMap.has(classKey)) {
+        schoolMap.set(classKey, {
+          code: item.code,
+          title: item.title,
+          credits: item.credits,
+          sourceCollege: school,
+          targetUniversities: [],
+        });
+      }
+    });
 
     plans.forEach((plan) => {
       plan.classes.forEach((item) => {
@@ -65,7 +96,7 @@ export default function EquivlancesScreen() {
         classes: [...classMap.values()].sort((a, b) => a.code.localeCompare(b.code)),
       }))
       .sort((a, b) => a.school.localeCompare(b.school));
-  }, [plans]);
+  }, [plans, savedClasses]);
 
   const columns = width >= 1200 ? 3 : width >= 760 ? 2 : 1;
   const cardWidth = columns === 3 ? "31.5%" : columns === 2 ? "48.5%" : "100%";
@@ -92,7 +123,7 @@ export default function EquivlancesScreen() {
         </Text>
 
         <Text style={{ fontSize: 14, color: "rgba(255,255,255,0.45)" }}>
-          Classes that transfer, grouped by school.
+          Preset classes grouped by school, with transfer mappings.
         </Text>
       </VStack>
 
@@ -107,7 +138,7 @@ export default function EquivlancesScreen() {
           }}
         >
           <Text style={{ color: "rgba(255,255,255,0.5)", fontSize: 13 }}>
-            No equivalencies yet. Generate at least one transfer plan first.
+            No classes yet. Add classes in Search to build mappings.
           </Text>
         </Box>
       ) : (
@@ -147,10 +178,13 @@ export default function EquivlancesScreen() {
                       {item.credits} credits
                     </Text>
                     <Text style={{ color: "rgba(255,255,255,0.55)", fontSize: 11, marginTop: 6 }}>
-                      Transfers to: {item.targetUniversities.slice(0, 3).join(", ")}
-                      {item.targetUniversities.length > 3
-                        ? ` +${item.targetUniversities.length - 3} more`
-                        : ""}
+                      {item.targetUniversities.length === 0
+                        ? "Transfers to: Not mapped yet"
+                        : `Transfers to: ${item.targetUniversities.slice(0, 3).join(", ")}${
+                            item.targetUniversities.length > 3
+                              ? ` +${item.targetUniversities.length - 3} more`
+                              : ""
+                          }`}
                     </Text>
                   </Box>
                 ))}

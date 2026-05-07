@@ -1,5 +1,6 @@
 import { useState } from "react";
 import {
+  Alert,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
@@ -20,14 +21,16 @@ import { useAuth } from "@/src/lib/auth";
 const BACKEND_BASE_URL = "http://localhost:8080";
 
 export default function SignUpScreen() {
-  const { signInWithLocal } = useAuth();
+  const { signInWithLocal, signInWithGoogle } = useAuth();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
+  const [currentInstitutionId, setCurrentInstitutionId] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const passwordMismatch =
@@ -35,9 +38,14 @@ export default function SignUpScreen() {
 
   const handleSignUp = async () => {
     setError(null);
+    const parsedInstitutionId = Number(currentInstitutionId);
 
     if (!email.trim()) {
       setError("Email is required.");
+      return;
+    }
+    if (currentInstitutionId.trim() && !Number.isFinite(parsedInstitutionId)) {
+      setError("Institution ID must be a valid number.");
       return;
     }
     if (passwordMismatch || password !== confirmPassword) {
@@ -54,6 +62,10 @@ export default function SignUpScreen() {
         body: JSON.stringify({
           email: email.trim(),
           name: fullName.trim() || undefined,
+          currentInstitutionId:
+            currentInstitutionId.trim() && Number.isFinite(parsedInstitutionId)
+              ? parsedInstitutionId
+              : undefined,
         }),
       });
 
@@ -68,7 +80,13 @@ export default function SignUpScreen() {
       }
 
       // Step 2: open a session and navigate into the app
-      await signInWithLocal(email.trim(), fullName.trim() || undefined);
+      await signInWithLocal(
+        email.trim(),
+        fullName.trim() || undefined,
+        currentInstitutionId.trim() && Number.isFinite(parsedInstitutionId)
+          ? parsedInstitutionId
+          : undefined
+      );
       router.replace("/landingPage");
     } catch (e) {
       const message =
@@ -79,6 +97,26 @@ export default function SignUpScreen() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGoogleSignIn = async () => {
+    try {
+      setGoogleLoading(true);
+      await signInWithGoogle();
+      router.replace("/landingPage");
+    } catch (e) {
+      const message =
+        e instanceof Error && e.message
+          ? e.message
+          : "Google sign-in failed. Please try again.";
+      Alert.alert("Sign-in error", message);
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
+  const handleGithubSignIn = () => {
+    Alert.alert("Coming soon", "GitHub sign-in is not wired up yet.");
   };
 
   return (
@@ -154,6 +192,22 @@ export default function SignUpScreen() {
 
             <VStack className="gap-2">
               <Text className="text-xs font-semibold text-white/55 uppercase tracking-widest">
+                Current Institution ID (optional)
+              </Text>
+              <Input className="bg-white/5 border border-purple-700/30 rounded-xl h-12">
+                <InputField
+                  placeholder="e.g., 12"
+                  placeholderTextColor="rgba(255,255,255,0.2)"
+                  value={currentInstitutionId}
+                  onChangeText={setCurrentInstitutionId}
+                  keyboardType="numeric"
+                  className="text-white text-base px-4"
+                />
+              </Input>
+            </VStack>
+
+            <VStack className="gap-2">
+              <Text className="text-xs font-semibold text-white/55 uppercase tracking-widest">
                 Password
               </Text>
               <Input className="bg-white/5 border border-purple-700/30 rounded-xl h-12">
@@ -222,6 +276,29 @@ export default function SignUpScreen() {
                 {loading ? "Creating Account…" : "Create Account"}
               </ButtonText>
             </Button>
+
+            <Text className="text-xs text-white/35 text-center mt-2">or continue with</Text>
+
+            <HStack className="gap-3">
+              <Button
+                onPress={handleGoogleSignIn}
+                disabled={googleLoading}
+                className="flex-1 rounded-xl h-12 bg-white"
+              >
+                <ButtonText className="text-sm font-semibold text-black">
+                  {googleLoading ? "Signing in..." : "Google"}
+                </ButtonText>
+              </Button>
+
+              <Button
+                onPress={handleGithubSignIn}
+                className="flex-1 rounded-xl h-12 bg-black border border-purple-700/40"
+              >
+                <ButtonText className="text-sm font-semibold text-white">
+                  GitHub
+                </ButtonText>
+              </Button>
+            </HStack>
           </VStack>
           <HStack className="justify-center items-center">
             <Text className="text-sm text-white/40">

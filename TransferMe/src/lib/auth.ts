@@ -33,7 +33,11 @@ type AuthContextValue = {
   isAuthenticated: boolean;
   user: AuthUser | null;
   signInWithGoogle: () => Promise<void>;
-  signInWithLocal: (email: string, name?: string) => Promise<void>;
+  signInWithLocal: (
+    email: string,
+    name?: string,
+    currentInstitutionId?: number
+  ) => Promise<void>;
   handleOAuthCallback: (callbackUrl: string) => Promise<void>;
   restoreSession: () => Promise<void>;
   logout: () => Promise<void>;
@@ -243,6 +247,10 @@ async function authenticatedFetch(path: string, init?: RequestInit): Promise<Res
   let response = await makeRequest(tokens.accessToken);
 
   if (response.status === 401) {
+    if (!tokens.refreshToken) {
+      return response;
+    }
+
     const nextTokens = await refreshTokens(tokens.refreshToken);
     if (!nextTokens?.accessToken) {
       throw asApiError("Session expired.", 401);
@@ -319,8 +327,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const me = await getCurrentUser();
-      setUser(me);
+      try {
+        const me = await getCurrentUser();
+        setUser(me);
+      } catch {
+        if (tokens.refreshToken) {
+          await clearTokens();
+          setUser(null);
+          return;
+        }
+
+        // Local access-token-only sessions may not support /api/auth/me yet.
+        // Keep session active with a minimal authenticated user object.
+        setUser({});
+      }
     } catch {
       await clearTokens();
       setUser(null);
@@ -333,16 +353,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     restoreSession();
   }, [restoreSession]);
 
-  const signInWithLocal = useCallback(async (email: string, name?: string) => {
+  const signInWithLocal = useCallback(
+    async (email: string, name?: string, currentInstitutionId?: number) => {
     const data = await requestJson<Record<string, unknown>>("/api/auth/local/session", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, ...(name ? { name } : {}) }),
+      body: JSON.stringify({
+        email,
+        ...(name ? { name } : {}),
+        ...(Number.isFinite(currentInstitutionId)
+          ? { currentInstitutionId }
+          : {}),
+      }),
     });
     const tokens = extractTokens(data);
     await saveTokens(tokens);
-    const me = await getCurrentUser();
-    setUser(me);
+
+    const student =
+      typeof data.student === "object" && data.student
+        ? (data.student as Record<string, unknown>)
+        : null;
+
+    if (student) {
+      setUser({
+        id: typeof student.userId === "string" ? student.userId : undefined,
+        email: typeof student.email === "string" ? student.email : email,
+        name: typeof student.name === "string" ? student.name : name,
+        ...student,
+      });
+      return;
+    }
+
+    try {
+      const me = await getCurrentUser();
+      setUser(me);
+    } catch {
+      setUser({ email, name });
+    }
   }, []);
 
   const signInWithGoogle = useCallback(async () => {

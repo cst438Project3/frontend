@@ -19,6 +19,7 @@ import { VStack } from "@/components/ui/vstack";
 import { Pressable } from "@/components/ui/pressable";
 import {
   addSavedClass,
+  getKnownInstitutions,
   getSavedClasses,
   getSelectedClassIds,
   removeSavedClass,
@@ -39,16 +40,21 @@ export default function SearchScreen() {
   const [classTitle, setClassTitle] = useState("");
   const [credits, setCredits] = useState("");
   const [sourceCollege, setSourceCollege] = useState("");
+  const [sourceSuggestions, setSourceSuggestions] = useState<string[]>([]);
+  const [isSourceFocused, setIsSourceFocused] = useState(false);
   const [savedClasses, setSavedClasses] = useState<SavedClass[]>([]);
   const [selectedClassIds, setSelectedClassIds] = useState<string[]>([]);
 
   const loadData = useCallback(async () => {
-    const [classes, selected] = await Promise.all([
+    const [classes, selected, institutions] = await Promise.all([
       getSavedClasses(),
       getSelectedClassIds(),
+      getKnownInstitutions(),
     ]);
+
     setSavedClasses(classes);
     setSelectedClassIds(selected);
+    setSourceSuggestions(institutions.sourceColleges);
   }, []);
 
   useFocusEffect(
@@ -68,13 +74,30 @@ export default function SearchScreen() {
     );
   }, [query, savedClasses]);
 
+  const filteredSourceSuggestions = useMemo(() => {
+    const normalized = sourceCollege.trim().toLowerCase();
+
+    // When focused and no text, show all suggestions (up to 6)
+    if (!normalized) {
+      return sourceSuggestions.slice(0, 6);
+    }
+
+    // When typing, filter suggestions
+    return sourceSuggestions
+      .filter((item) => item.toLowerCase().includes(normalized))
+      .slice(0, 6);
+  }, [sourceCollege, sourceSuggestions]);
+
+  // Show suggestions dropdown if focused, regardless of whether there are matches yet
+  const shouldShowSourceSuggestions = isSourceFocused && sourceSuggestions.length > 0;
+
   const selectedCount = selectedClassIds.length;
 
   const handleAddClass = async () => {
     const parsedCredits = Number(credits);
 
-    if (!classCode.trim() || !classTitle.trim() || !sourceCollege.trim()) {
-      Alert.alert("Missing details", "Please fill in all class fields.");
+    if (!classCode.trim() || !classTitle.trim()) {
+      Alert.alert("Missing details", "Please fill in class code and title.");
       return;
     }
 
@@ -83,18 +106,28 @@ export default function SearchScreen() {
       return;
     }
 
-    const updated = await addSavedClass({
-      code: classCode,
-      title: classTitle,
-      credits: parsedCredits,
-      sourceCollege,
-    });
+    try {
+      const updated = await addSavedClass({
+        code: classCode,
+        title: classTitle,
+        credits: parsedCredits,
+        sourceCollege: sourceCollege.trim() || undefined,
+      });
 
-    setSavedClasses(updated);
-    setClassCode("");
-    setClassTitle("");
-    setCredits("");
-    setSourceCollege("");
+      setSavedClasses(updated);
+      setClassCode("");
+      setClassTitle("");
+      setCredits("");
+      setSourceCollege("");
+      Alert.alert("Success", "Class saved!");
+      await loadData();
+    } catch (error) {
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : "Failed to save class. Please try again.";
+      Alert.alert("Save error", message);
+    }
   };
 
   const handleToggleSelected = async (id: string) => {
@@ -277,6 +310,10 @@ export default function SearchScreen() {
                 placeholderTextColor="rgba(255,255,255,0.28)"
                 value={sourceCollege}
                 onChangeText={setSourceCollege}
+                onFocus={() => setIsSourceFocused(true)}
+                onBlur={() => {
+                  setTimeout(() => setIsSourceFocused(false), 120);
+                }}
                 style={{
                   flex: 2,
                   backgroundColor: "rgba(255,255,255,0.05)",
@@ -289,6 +326,36 @@ export default function SearchScreen() {
                 }}
               />
             </HStack>
+
+            {shouldShowSourceSuggestions && (
+              <Box
+                style={{
+                  backgroundColor: "rgba(17, 24, 39, 0.95)",
+                  borderWidth: 1,
+                  borderColor: "rgba(147, 51, 234, 0.35)",
+                  borderRadius: 12,
+                  overflow: "hidden",
+                }}
+              >
+                {filteredSourceSuggestions.map((item) => (
+                  <Pressable
+                    key={item}
+                    onPress={() => {
+                      setSourceCollege(item);
+                      setIsSourceFocused(false);
+                    }}
+                    style={{
+                      paddingHorizontal: 12,
+                      paddingVertical: 10,
+                      borderBottomWidth: 1,
+                      borderBottomColor: "rgba(147, 51, 234, 0.15)",
+                    }}
+                  >
+                    <Text style={{ color: "#e9d5ff", fontSize: 13 }}>{item}</Text>
+                  </Pressable>
+                ))}
+              </Box>
+            )}
 
             <TouchableOpacity
               onPress={handleAddClass}
