@@ -75,7 +75,7 @@ export default function HomePage() {
               letterSpacing: -0.5,
             }}
           >
-            John Smith 👋
+            John Pork 👋
           </Text>
 
           <Text style={{ color: "rgba(192,132,252,0.65)", fontSize: 13 }}>
