@@ -1,24 +1,46 @@
+import { useEffect } from "react";
 import { Platform, StatusBar } from "react-native";
 import { Slot, router, usePathname } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
+
 import { Box } from "@/components/ui/box";
-import { Text } from "@/components/ui/text";
 import { HStack } from "@/components/ui/hstack";
-import { VStack } from "@/components/ui/vstack";
 import { Pressable } from "@/components/ui/pressable";
+import { Text } from "@/components/ui/text";
+import { VStack } from "@/components/ui/vstack";
+import { useAuth } from "@/src/auth/AuthContext";
 
 const NAV_ITEMS = [
-  { icon: "⊞", label: "Home", route: "/landingPage" },
-  { icon: "📋", label: "My Transfer Plans", route: "/landingPage/transferPlan" },
-  { icon: "🔍", label: "Credit Transfer Search", route: "/landingPage/search" },
-  { icon: "⇄", label: "Equivalencies", route: "/landingPage/Equivlances" },
-  { icon: "⚙️", label: "Settings", route: "/landingPage/settings" },
+  { icon: "âŠž", label: "Home", route: "/landingPage" },
+  { icon: "ðŸ“‹", label: "My Transfer Plans", route: "/landingPage/transferPlan" },
+  { icon: "ðŸ”", label: "Credit Transfer Search", route: "/landingPage/search" },
+  { icon: "â‡„", label: "Equivalencies", route: "/landingPage/Equivlances" },
+  { icon: "âš™ï¸", label: "Settings", route: "/landingPage/settings" },
 ];
 
 const isWeb = Platform.OS === "web";
 
-function TopNavBar({ pathname }: { pathname: string }) {
+function initialsFor(name?: string | null) {
+  if (!name) {
+    return "?";
+  }
+
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
+}
+
+function TopNavBar({
+  pathname,
+  displayName,
+}: {
+  pathname: string;
+  displayName: string;
+}) {
   return (
     <HStack
       className="items-center justify-between px-6"
@@ -29,7 +51,6 @@ function TopNavBar({ pathname }: { pathname: string }) {
         height: 60,
       }}
     >
-      {/* ai generated ahh logo */}
       <HStack className="items-center gap-3">
         <Box
           className="w-8 h-8 rounded-xl items-center justify-center"
@@ -39,7 +60,7 @@ function TopNavBar({ pathname }: { pathname: string }) {
             borderColor: "rgba(147,51,234,0.5)",
           }}
         >
-          <Text className="text-base text-purple-400">⇄</Text>
+          <Text className="text-base text-purple-400">â‡„</Text>
         </Box>
         <Text className="text-base font-extrabold text-white tracking-tight">
           TransferMe
@@ -48,7 +69,8 @@ function TopNavBar({ pathname }: { pathname: string }) {
 
       <HStack className="items-center gap-1">
         {NAV_ITEMS.map((item) => {
-          const isActive = pathname === item.route || 
+          const isActive =
+            pathname === item.route ||
             (item.route === "/landingPage" && pathname === "/landingPage/index");
           return (
             <Pressable
@@ -78,10 +100,12 @@ function TopNavBar({ pathname }: { pathname: string }) {
         }}
       >
         <Box className="w-7 h-7 rounded-full bg-purple-600 items-center justify-center">
-          <Text className="text-xs font-bold text-white">J</Text>
+          <Text className="text-xs font-bold text-white">
+            {initialsFor(displayName)}
+          </Text>
         </Box>
-        <Text className="text-sm font-semibold text-white">John Smith</Text>
-        <Text className="text-xs text-purple-400">▾</Text>
+        <Text className="text-sm font-semibold text-white">{displayName}</Text>
+        <Text className="text-xs text-purple-400">â–¾</Text>
       </Pressable>
     </HStack>
   );
@@ -89,11 +113,11 @@ function TopNavBar({ pathname }: { pathname: string }) {
 
 function BottomTabBar({ pathname }: { pathname: string }) {
   const tabs = [
-    { icon: "⊞", label: "Home", route: "/landingPage" },
-    { icon: "📋", label: "Plans", route: "/landingPage/transferPlan" },
-    { icon: "🔍", label: "Search", route: "/landingPage/search" },
-    { icon: "⇄", label: "Equiv.", route: "/landingPage/Equivlances" },
-    { icon: "⚙️", label: "Settings", route: "/landingPage/settings" },
+    { icon: "âŠž", label: "Home", route: "/landingPage" },
+    { icon: "ðŸ“‹", label: "Plans", route: "/landingPage/transferPlan" },
+    { icon: "ðŸ”", label: "Search", route: "/landingPage/search" },
+    { icon: "â‡„", label: "Equiv.", route: "/landingPage/Equivlances" },
+    { icon: "âš™ï¸", label: "Settings", route: "/landingPage/settings" },
   ];
 
   return (
@@ -108,7 +132,8 @@ function BottomTabBar({ pathname }: { pathname: string }) {
     >
       <HStack className="justify-around items-center px-2">
         {tabs.map((tab) => {
-          const isActive = pathname === tab.route ||
+          const isActive =
+            pathname === tab.route ||
             (tab.route === "/(dashboard)" && pathname === "/(dashboard)/index");
           return (
             <Pressable
@@ -137,7 +162,7 @@ function BottomTabBar({ pathname }: { pathname: string }) {
   );
 }
 
-function MobileHeader() {
+function MobileHeader({ displayName }: { displayName: string }) {
   return (
     <HStack
       className="items-center justify-between px-5 py-4"
@@ -156,7 +181,7 @@ function MobileHeader() {
             borderColor: "rgba(147,51,234,0.5)",
           }}
         >
-          <Text className="text-lg text-purple-400">⇄</Text>
+          <Text className="text-lg text-purple-400">â‡„</Text>
         </Box>
         <Text className="text-lg font-extrabold text-white tracking-tight">
           TransferMe
@@ -171,10 +196,12 @@ function MobileHeader() {
         }}
       >
         <Box className="w-7 h-7 rounded-full bg-purple-600 items-center justify-center">
-          <Text className="text-xs font-bold text-white">J</Text>
+          <Text className="text-xs font-bold text-white">
+            {initialsFor(displayName)}
+          </Text>
         </Box>
-        <Text className="text-sm font-semibold text-white">John Smith</Text>
-        <Text className="text-xs text-purple-400">▾</Text>
+        <Text className="text-sm font-semibold text-white">{displayName}</Text>
+        <Text className="text-xs text-purple-400">â–¾</Text>
       </Pressable>
     </HStack>
   );
@@ -182,6 +209,18 @@ function MobileHeader() {
 
 export default function DashboardLayout() {
   const pathname = usePathname();
+  const { isAuthenticated, isLoading, user } = useAuth();
+  const displayName = user?.name ?? user?.student?.name ?? "TransferMe User";
+
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      router.replace("/");
+    }
+  }, [isAuthenticated, isLoading]);
+
+  if (isLoading || !isAuthenticated) {
+    return null;
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-[#0a0a0a]">
@@ -194,14 +233,14 @@ export default function DashboardLayout() {
 
       {isWeb ? (
         <VStack className="flex-1">
-          <TopNavBar pathname={pathname} />
+          <TopNavBar pathname={pathname} displayName={displayName} />
           <Box className="flex-1">
             <Slot />
           </Box>
         </VStack>
       ) : (
         <VStack className="flex-1">
-          <MobileHeader />
+          <MobileHeader displayName={displayName} />
           <Box className="flex-1">
             <Slot />
           </Box>

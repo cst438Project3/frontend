@@ -1,50 +1,56 @@
-# Welcome to your Expo app 👋
+# TransferMe Frontend
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Expo frontend for TransferMe.
 
-## Get started
+## Google OAuth2 Flow
 
-1. Install dependencies
+This branch now matches the backend's Supabase-backed Google auth flow:
 
-   ```bash
-   npm install
-   ```
+1. the app opens Google sign-in with Expo Auth Session
+2. Google returns an `id_token` on the client
+3. the app posts that token to `POST /api/auth/google/exchange`
+4. the backend returns a Supabase access token and refresh token
+5. the app stores the session locally and calls backend APIs with `Authorization: Bearer <supabase-jwt>`
 
-2. Start the app
+The frontend also restores saved sessions on launch and refreshes them through `POST /api/auth/refresh` when needed.
 
-   ```bash
-   npx expo start
-   ```
+## Required Env Vars
 
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+Set these before running the app:
 
 ```bash
-npm run reset-project
+EXPO_PUBLIC_API_BASE_URL=http://localhost:8080
+EXPO_PUBLIC_GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
+EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID=your-android-client-id.apps.googleusercontent.com
+EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=your-ios-client-id.apps.googleusercontent.com
+EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=your-web-client-id.apps.googleusercontent.com
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Notes:
 
-## Learn more
+- `EXPO_PUBLIC_API_BASE_URL` should point at the backend repo running on its `google-oauth2` branch.
+- `EXPO_PUBLIC_GOOGLE_CLIENT_ID` is a useful fallback when you do not yet have separate native client IDs configured.
+- the app uses the `transferme://oauthredirect` redirect scheme on native.
 
-To learn more about developing your project with Expo, look at the following resources:
+## Run
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+```bash
+npm install
+npx expo start
+```
 
-## Join the community
+## Current Scope
 
-Join our community of developers creating universal apps.
+Wired up:
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+- Google sign-in
+- backend token exchange
+- session restore and refresh
+- protected landing routes
+- logout
+
+Still stubbed:
+
+- email/password auth
+- GitHub auth
+- profile save/update wiring

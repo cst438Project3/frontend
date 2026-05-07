@@ -4,10 +4,11 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 
 import { Box } from "@/components/ui/box";
-import { Text } from "@/components/ui/text";
 import { HStack } from "@/components/ui/hstack";
-import { VStack } from "@/components/ui/vstack";
 import { Pressable } from "@/components/ui/pressable";
+import { Text } from "@/components/ui/text";
+import { VStack } from "@/components/ui/vstack";
+import { useAuth } from "@/src/auth/AuthContext";
 
 const PLANS = [
   {
@@ -43,7 +44,9 @@ const statusColors: Record<string, string> = {
 };
 
 export default function HomePage() {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("All");
+  const displayName = user?.name ?? user?.student?.name ?? "Student";
 
   const filteredPlans =
     activeTab === "All"
@@ -75,7 +78,7 @@ export default function HomePage() {
               letterSpacing: -0.5,
             }}
           >
-            John Smith 👋
+            {displayName} ðŸ‘‹
           </Text>
 
           <Text style={{ color: "rgba(192,132,252,0.65)", fontSize: 13 }}>

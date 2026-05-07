@@ -1,22 +1,34 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
-  View,
-  Text,
+  Alert,
   ScrollView,
-  TouchableOpacity,
-  TextInput,
   StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { router } from "expo-router";
 
+import { useAuth } from "@/src/auth/AuthContext";
+
 export default function SettingsScreen() {
-  const [name, setName] = useState("John Smith");
-  const [username, setUsername] = useState("johnsmith");
-  const [email, setEmail] = useState("john@university.edu");
+  const { logout, user } = useAuth();
+  const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+
+  useEffect(() => {
+    setName(user?.name ?? user?.student?.name ?? "");
+    setUsername(user?.email?.split("@")[0] ?? "");
+    setEmail(user?.email ?? user?.student?.email ?? "");
+  }, [user]);
 
   const handleSave = () => {
-    // TODO: connect to backend
-    console.log("Saved:", { name, username, email });
+    Alert.alert(
+      "Profile editing not connected yet",
+      "Google sign-in is wired up, but profile updates still need a backend profile endpoint hookup.",
+    );
   };
 
   return (
@@ -24,13 +36,11 @@ export default function SettingsScreen() {
       contentContainerStyle={styles.scrollContent}
       showsVerticalScrollIndicator={false}
     >
-      {/* Header */}
       <View style={styles.hero}>
         <Text style={styles.pageTitle}>Settings</Text>
         <Text style={styles.pageSub}>Edit your profile</Text>
       </View>
 
-      {/* Edit  Card */}
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Edit Profile</Text>
 
@@ -75,15 +85,18 @@ export default function SettingsScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Logout button */}
       <TouchableOpacity
         style={styles.logoutButton}
-        onPress={() => router.replace("/")}
+        onPress={() => {
+          void (async () => {
+            await logout();
+            router.replace("/");
+          })();
+        }}
         activeOpacity={0.85}
       >
-        <Text style={styles.logoutText}>🚪  Log Out</Text>
+        <Text style={styles.logoutText}>ðŸšª  Log Out</Text>
       </TouchableOpacity>
-
     </ScrollView>
   );
 }
@@ -108,7 +121,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "rgba(192,132,252,0.65)",
   },
-
   card: {
     backgroundColor: "rgba(255,255,255,0.04)",
     borderWidth: 1,
@@ -117,23 +129,19 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 14,
   },
-
   sectionTitle: {
     fontSize: 13,
     fontWeight: "700",
     color: "rgba(255,255,255,0.55)",
     textTransform: "uppercase",
   },
-
   inputGroup: {
     gap: 6,
   },
-
   label: {
     fontSize: 12,
     color: "rgba(255,255,255,0.45)",
   },
-
   input: {
     backgroundColor: "rgba(255,255,255,0.05)",
     borderWidth: 1,
@@ -144,7 +152,6 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontSize: 14,
   },
-
   saveButton: {
     marginTop: 10,
     backgroundColor: "#9333ea",
@@ -152,13 +159,11 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     alignItems: "center",
   },
-
   saveText: {
     color: "#ffffff",
     fontWeight: "700",
     fontSize: 14,
   },
-
   logoutButton: {
     backgroundColor: "rgba(239,68,68,0.1)",
     borderWidth: 1,
@@ -167,16 +172,9 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     alignItems: "center",
   },
-
   logoutText: {
     fontSize: 14,
     fontWeight: "700",
     color: "#f87171",
-  },
-
-  version: {
-    fontSize: 12,
-    color: "rgba(255,255,255,0.2)",
-    textAlign: "center",
   },
 });

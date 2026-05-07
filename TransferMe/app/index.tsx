@@ -1,42 +1,141 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
-  View,
-  Text,
-  StatusBar,
-  ScrollView,
+  ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
+  StatusBar,
+  Text,
   TouchableOpacity,
+  View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import * as AuthSession from "expo-auth-session";
+import * as Google from "expo-auth-session/providers/google";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-import { Button, ButtonText } from "../components/ui/button";
-import { Input, InputField } from "../components/ui/input";
 import { Box } from "../components/ui/box";
-import { VStack } from "../components/ui/vstack";
-import { HStack } from "../components/ui/hstack";
+import { Button, ButtonText } from "../components/ui/button";
 import { Center } from "../components/ui/center";
 import { Divider } from "../components/ui/divider";
+import { HStack } from "../components/ui/hstack";
+import { Input, InputField } from "../components/ui/input";
+import { VStack } from "../components/ui/vstack";
+import { useAuth } from "@/src/auth/AuthContext";
+import { authConfig, hasGoogleClientId } from "@/src/auth/config";
 
 export default function LoginScreen() {
+  const { isAuthenticated, isLoading, signInWithGoogleTokens } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordVisible, setPasswordVisible] = useState(false);
+  const [isGoogleSigningIn, setIsGoogleSigningIn] = useState(false);
+  const redirectUri = useMemo(
+    () =>
+      AuthSession.makeRedirectUri({
+        scheme: "transferme",
+        path: "oauthredirect",
+      }),
+    [],
+  );
+
+  const [request, response, promptAsync] = Google.useIdTokenAuthRequest(
+    {
+      clientId: authConfig.googleClientId ?? "transferme-google-client-id",
+      androidClientId:
+        authConfig.googleAndroidClientId ?? authConfig.googleClientId,
+      iosClientId: authConfig.googleIosClientId ?? authConfig.googleClientId,
+      webClientId: authConfig.googleWebClientId ?? authConfig.googleClientId,
+      redirectUri,
+      selectAccount: true,
+    },
+    {
+      path: "oauthredirect",
+    },
+  );
+
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      router.replace("/landingPage");
+    }
+  }, [isAuthenticated, isLoading]);
+
+  useEffect(() => {
+    const completeGoogleSignIn = async () => {
+      if (response?.type !== "success") {
+        if (response?.type === "error") {
+          setIsGoogleSigningIn(false);
+          Alert.alert("Google sign-in failed", "Google did not complete sign-in.");
+        }
+        return;
+      }
+
+      const idToken =
+        typeof response.params.id_token === "string"
+          ? response.params.id_token
+          : response.authentication?.idToken;
+      const accessToken =
+        typeof response.params.access_token === "string"
+          ? response.params.access_token
+          : response.authentication?.accessToken;
+
+      if (!idToken) {
+        setIsGoogleSigningIn(false);
+        Alert.alert(
+          "Google sign-in failed",
+          "Google did not return the ID token the backend expects.",
+        );
+        return;
+      }
+
+      try {
+        await signInWithGoogleTokens({ idToken, accessToken });
+        router.replace("/landingPage");
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Unable to finish sign-in.";
+        Alert.alert("Sign-in failed", message);
+      } finally {
+        setIsGoogleSigningIn(false);
+      }
+    };
+
+    void completeGoogleSignIn();
+  }, [response, signInWithGoogleTokens]);
 
   const handleEmailLogin = () => {
-    // TODO: wire up email/password auth
-    // placeholder route 
-    router.replace("/landingPage");
+    Alert.alert("Not yet available", "Email/password auth is not wired up yet.");
   };
 
-  const handleGoogleSignIn = () => {
-    // TODO:  Google OAuth here
+  const handleGoogleSignIn = async () => {
+    if (!hasGoogleClientId) {
+      Alert.alert(
+        "Missing Google OAuth config",
+        "Set the EXPO_PUBLIC_GOOGLE_* client ID env vars before testing sign-in.",
+      );
+      return;
+    }
+
+    if (!request) {
+      Alert.alert(
+        "Google sign-in unavailable",
+        "The Google sign-in request is still loading. Try again in a moment.",
+      );
+      return;
+    }
+
+    setIsGoogleSigningIn(true);
+
+    const result = await promptAsync();
+    if (result.type !== "success") {
+      setIsGoogleSigningIn(false);
+    }
   };
 
   const handleGithubSignIn = () => {
-    // TODO: GitHub OAuth here
+    Alert.alert("Not yet available", "GitHub auth is not wired up on this branch.");
   };
 
   const handleSignUp = () => {
@@ -103,7 +202,7 @@ export default function LoginScreen() {
                     marginBottom: 10,
                   }}
                 >
-                  <Text style={{ fontSize: 28, color: "#c084fc" }}>⇄</Text>
+                  <Text style={{ fontSize: 28, color: "#c084fc" }}>â‡„</Text>
                 </Center>
 
                 <Text
@@ -192,7 +291,7 @@ export default function LoginScreen() {
                       }}
                     >
                       <InputField
-                        placeholder="••••••••"
+                        placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
                         placeholderTextColor="rgba(255,255,255,0.25)"
                         value={password}
                         onChangeText={setPassword}
@@ -213,7 +312,7 @@ export default function LoginScreen() {
                       }}
                     >
                       <Text style={{ fontSize: 16 }}>
-                        {passwordVisible ? "🙈" : "👁️"}
+                        {passwordVisible ? "ðŸ™ˆ" : "ðŸ‘ï¸"}
                       </Text>
                     </TouchableOpacity>
                   </Box>
@@ -260,18 +359,25 @@ export default function LoginScreen() {
             <HStack space="md">
               <Button
                 variant="outline"
-                onPress={handleGoogleSignIn}
+                onPress={() => void handleGoogleSignIn()}
+                isDisabled={isLoading || isGoogleSigningIn || !request}
                 style={{
                   flex: 1,
                   borderRadius: 12,
                   backgroundColor: "#ffffff",
                   borderColor: "#ffffff",
                   height: 52,
+                  opacity: isLoading || isGoogleSigningIn || !request ? 0.7 : 1,
                 }}
               >
-                <ButtonText style={{ color: "#111111", fontWeight: "600" }}>
-                  Google
-                </ButtonText>
+                <HStack space="sm" style={{ alignItems: "center" }}>
+                  {isGoogleSigningIn ? (
+                    <ActivityIndicator color="#111111" size="small" />
+                  ) : null}
+                  <ButtonText style={{ color: "#111111", fontWeight: "600" }}>
+                    {isGoogleSigningIn ? "Signing In..." : "Google"}
+                  </ButtonText>
+                </HStack>
               </Button>
 
               <Button
@@ -293,7 +399,7 @@ export default function LoginScreen() {
 
             <HStack style={{ justifyContent: "center", alignItems: "center" }}>
               <Text style={{ fontSize: 14, color: "rgba(255,255,255,0.4)" }}>
-                Don't have an account?{" "}
+                Do not have an account?{" "}
               </Text>
               <TouchableOpacity onPress={handleSignUp}>
                 <Text
