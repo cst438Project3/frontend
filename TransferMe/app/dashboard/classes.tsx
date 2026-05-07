@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { StatusBar, ScrollView } from "react-native";
+import { Pressable, StatusBar, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
@@ -9,15 +9,16 @@ import { VStack } from "@/components/ui/vstack";
 import { Text } from "@/components/ui/text";
 import { Button, ButtonText } from "@/components/ui/button";
 import { Input, InputField } from "@/components/ui/input";
+import { useTransferPlan } from "@/src/context/transfer-plan-context";
 
 export default function ClassesScreen() {
 	const [courseName, setCourseName] = useState("");
-	const [completedCourses, setCompletedCourses] = useState<string[]>([]);
+	const { classes, loadingClasses, classesError, addCourse, deleteCourse, clearCourses } = useTransferPlan();
 
-	const addCourse = () => {
+	const handleAddCourse = () => {
 		const trimmed = courseName.trim();
 		if (!trimmed) return;
-		setCompletedCourses((prev) => [...prev, trimmed]);
+		addCourse(trimmed);
 		setCourseName("");
 	};
 
@@ -54,7 +55,7 @@ export default function ClassesScreen() {
 				</Input>
 
 				<Button
-					onPress={addCourse}
+					onPress={handleAddCourse}
 					style={{ borderRadius: 14, backgroundColor: "#6d28d9", height: 50 }}
 				>
 					<ButtonText style={{ color: "#ffffff", fontWeight: "700" }}>
@@ -63,14 +64,16 @@ export default function ClassesScreen() {
 				</Button>
 
 				<VStack space="sm">
-					{completedCourses.length === 0 ? (
+					{loadingClasses ? (
+						<Text style={{ color: "rgba(255,255,255,0.6)" }}>Loading classes...</Text>
+					) : classes.length === 0 ? (
 						<Text style={{ color: "rgba(255,255,255,0.6)" }}>
 							No classes added yet.
 						</Text>
 					) : (
-						completedCourses.map((course, index) => (
+						classes.map((course) => (
 							<Box
-								key={`${course}-${index}`}
+								key={course.id}
 								style={{
 									borderRadius: 12,
 									padding: 12,
@@ -79,11 +82,26 @@ export default function ClassesScreen() {
 									borderColor: "rgba(147, 51, 234, 0.2)",
 								}}
 							>
-								<Text style={{ color: "#ffffff" }}>{course}</Text>
+								<Text style={{ color: "#ffffff" }}>{course.courseName}</Text>
+								<Pressable onPress={() => deleteCourse(course.id)}>
+									<Text style={{ color: "#c4b5fd", marginTop: 6, fontSize: 12 }}>Remove</Text>
+								</Pressable>
 							</Box>
 						))
 					)}
+					{classesError ? <Text style={{ color: "#fca5a5" }}>{classesError}</Text> : null}
 				</VStack>
+
+				{classes.length > 0 && (
+					<Button
+						onPress={clearCourses}
+						style={{ borderRadius: 14, backgroundColor: "#4b5563", height: 46 }}
+					>
+						<ButtonText style={{ color: "#ffffff", fontWeight: "700" }}>
+							Clear All Classes
+						</ButtonText>
+					</Button>
+				)}
 
 				<Button
 					onPress={() => router.replace("/")}

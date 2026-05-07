@@ -15,6 +15,7 @@ import { HStack } from "@/components/ui/hstack";
 import { Button, ButtonText } from "@/components/ui/button";
 import { Input, InputField, InputSlot } from "@/components/ui/input";
 import { Pressable } from "@/components/ui/pressable";
+import { registerUser } from "@/src/services/user-data";
 
 export default function SignUpScreen() {
   const [fullName, setFullName] = useState("");
@@ -23,12 +24,42 @@ export default function SignUpScreen() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [confirmVisible, setConfirmVisible] = useState(false);
+  const [registering, setRegistering] = useState(false);
+  const [registerError, setRegisterError] = useState("");
+  const [registerSuccess, setRegisterSuccess] = useState("");
 
   const passwordMismatch =
     confirmPassword.length > 0 && password !== confirmPassword;
 
-  const handleSignUp = () => {
-    // TODO: wire up registration
+  const handleSignUp = async () => {
+    if (!fullName.trim() || !email.trim() || !password.trim()) {
+      setRegisterError("Name, email, and password are required.");
+      return;
+    }
+
+    if (passwordMismatch) {
+      setRegisterError("Please fix password mismatch.");
+      return;
+    }
+
+    try {
+      setRegistering(true);
+      setRegisterError("");
+      setRegisterSuccess("");
+
+      await registerUser({
+        name: fullName.trim(),
+        email: email.trim(),
+        provider: "google",
+      });
+
+      setRegisterSuccess("Account created. You can now sign in.");
+      router.replace("/");
+    } catch (error) {
+      setRegisterError(error instanceof Error ? error.message : "Could not create account.");
+    } finally {
+      setRegistering(false);
+    }
   };
 
   return (
@@ -161,12 +192,19 @@ export default function SignUpScreen() {
 
             <Button
               onPress={handleSignUp}
+              isDisabled={registering}
               className="rounded-xl h-14 bg-purple-700 mt-1"
             >
               <ButtonText className="text-base font-bold text-white tracking-wide">
-                Create Account
+                {registering ? "Creating Account..." : "Create Account"}
               </ButtonText>
             </Button>
+            {registerError ? (
+              <Text className="text-xs text-red-400">{registerError}</Text>
+            ) : null}
+            {registerSuccess ? (
+              <Text className="text-xs text-emerald-400">{registerSuccess}</Text>
+            ) : null}
           </VStack>
           <HStack className="justify-center items-center">
             <Text className="text-sm text-white/40">

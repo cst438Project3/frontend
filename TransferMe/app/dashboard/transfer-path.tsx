@@ -11,8 +11,11 @@ import { Button, ButtonText } from "@/components/ui/button";
 import { Input, InputField } from "@/components/ui/input";
 import { fetchInstitutions, Institution } from "@/src/services/institutions";
 import { PRELOADED_MAJORS } from "@/src/constants/majors";
+import { useTransferPlan } from "@/src/context/transfer-plan-context";
+import { saveTransferPath } from "@/src/services/user-data";
 
 export default function TransferPathScreen() {
+	const { completedCourses, loadingClasses, classesError } = useTransferPlan();
 	const [fromSchool, setFromSchool] = useState("");
 	const [toSchool, setToSchool] = useState("");
 	const [major, setMajor] = useState("");
@@ -21,6 +24,8 @@ export default function TransferPathScreen() {
 	const [loadError, setLoadError] = useState("");
 	const [activeField, setActiveField] = useState<"from" | "to">("from");
 	const [showPath, setShowPath] = useState(false);
+	const [savingPath, setSavingPath] = useState(false);
+	const [saveError, setSaveError] = useState("");
 
 	useEffect(() => {
 		const loadInstitutions = async () => {
@@ -62,10 +67,48 @@ export default function TransferPathScreen() {
 		return PRELOADED_MAJORS.filter((item) => item.toLowerCase().includes(query)).slice(0, 8);
 	}, [major]);
 
-	const generatePath = () => {
+	const generatePath = async () => {
 		if (!fromSchool.trim() || !toSchool.trim()) return;
-		setShowPath(true);
+
+		try {
+			setSavingPath(true);
+			setSaveError("");
+			await saveTransferPath({
+				fromSchool: fromSchool.trim(),
+				toSchool: toSchool.trim(),
+				major: major.trim() || undefined,
+				courses: mappedCourses.map((item) => ({
+					courseName: item.course,
+					mappingResult: item.result,
+				})),
+			});
+			setShowPath(true);
+		} catch (error) {
+			setSaveError(error instanceof Error ? error.message : "Could not save transfer path");
+		} finally {
+			setSavingPath(false);
+		}
 	};
+
+	const mappedCourses = useMemo(() => {
+		const majorText = major.trim().toLowerCase();
+		const majorKeywords = ["cs", "computer", "software", "data", "engineering", "math", "business", "bio", "chem", "nursing"];
+		const majorRelevant = majorKeywords.some((keyword) => majorText.includes(keyword));
+
+		return completedCourses.map((course) => {
+			const normalized = course.toLowerCase();
+
+			if (majorText && majorRelevant && (normalized.includes("cs") || normalized.includes("cis") || normalized.includes("math") || normalized.includes("stat") || normalized.includes("eng"))) {
+				return { course, result: "Major requirement match" };
+			}
+
+			if (normalized.includes("math") || normalized.includes("eng") || normalized.includes("history") || normalized.includes("psych") || normalized.includes("bio") || normalized.includes("chem")) {
+				return { course, result: "General education transfer" };
+			}
+
+			return { course, result: "Elective credit (advisor review)" };
+		});
+	}, [completedCourses, major]);
 
 	const applySchoolSelection = (schoolName: string) => {
 		if (activeField === "from") {
@@ -264,12 +307,14 @@ export default function TransferPathScreen() {
 
 				<Button
 					onPress={generatePath}
+					isDisabled={savingPath}
 					style={{ borderRadius: 14, backgroundColor: "#5b21b6", height: 50 }}
 				>
 					<ButtonText style={{ color: "#ffffff", fontWeight: "700" }}>
-						Generate Transfer Path
+						{savingPath ? "Saving Transfer Path..." : "Generate Transfer Path"}
 					</ButtonText>
 				</Button>
+				{saveError ? <Text style={{ color: "#fca5a5" }}>{saveError}</Text> : null}
 
 				{showPath && (
 					<Box
@@ -298,6 +343,49 @@ export default function TransferPathScreen() {
 						<Text style={{ color: "rgba(255,255,255,0.75)", marginTop: 4 }}>
 							3. Submit transfer application by deadline
 						</Text>
+
+						<Text style={{ color: "#ffffff", fontWeight: "700", marginTop: 14 }}>
+							Mapped Classes
+						</Text>
+						{loadingClasses ? (
+							<Text style={{ color: "rgba(255,255,255,0.7)", marginTop: 6 }}>Loading classes...</Text>
+						) : null}
+						{classesError ? (
+							<Text style={{ color: "#fca5a5", marginTop: 6 }}>{classesError}</Text>
+						) : null}
+						{mappedCourses.length === 0 ? (
+							<>
+								<Text style={{ color: "rgba(255,255,255,0.7)", marginTop: 6 }}>
+									No classes found. Add classes first to map transfer credits.
+								</Text>
+								<Button
+									onPress={() => router.push("/dashboard/classes")}
+									style={{ borderRadius: 12, backgroundColor: "#6d28d9", height: 44, marginTop: 10 }}
+								>
+									<ButtonText style={{ color: "#ffffff", fontWeight: "700" }}>
+										Add Classes
+									</ButtonText>
+								</Button>
+							</>
+						) : (
+							<VStack space="xs" style={{ marginTop: 8 }}>
+								{mappedCourses.map((item, index) => (
+									<Box
+										key={`${item.course}-${index}`}
+										style={{
+											borderRadius: 12,
+											padding: 10,
+											backgroundColor: "rgba(124, 58, 237, 0.2)",
+										}}
+									>
+										<Text style={{ color: "#ffffff", fontWeight: "600" }}>{item.course}</Text>
+										<Text style={{ color: "#ddd6fe", marginTop: 2, fontSize: 12 }}>
+											{item.result}
+										</Text>
+									</Box>
+								))}
+							</VStack>
+						)}
 					</Box>
 				)}
 

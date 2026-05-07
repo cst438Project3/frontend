@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { StatusBar } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -10,25 +10,69 @@ import { HStack } from "@/components/ui/hstack";
 import { Text } from "@/components/ui/text";
 import { Button, ButtonText } from "@/components/ui/button";
 import { Input, InputField } from "@/components/ui/input";
+import { getMe, getMyProfile, updateMyProfile } from "@/src/services/user-data";
 
 export default function ProfileScreen() {
 	const [profile, setProfile] = useState({
 		fullName: "Jane Student",
-		currentCollege: "City College",
-		targetUniversity: "State University",
-		major: "Computer Science",
+		currentCollege: "",
+		targetUniversity: "",
+		major: "",
 	});
 	const [draftProfile, setDraftProfile] = useState(profile);
 	const [isEditing, setIsEditing] = useState(false);
+	const [loadingProfile, setLoadingProfile] = useState(true);
+	const [profileError, setProfileError] = useState("");
+	const [savingProfile, setSavingProfile] = useState(false);
+
+	useEffect(() => {
+		const load = async () => {
+			try {
+				setLoadingProfile(true);
+				setProfileError("");
+
+				const [me, savedProfile] = await Promise.all([getMe(), getMyProfile()]);
+
+				const nextProfile = {
+					fullName: me?.name || "",
+					currentCollege: savedProfile?.currentCollege || "",
+					targetUniversity: savedProfile?.targetUniversity || "",
+					major: savedProfile?.major || "",
+				};
+
+				setProfile(nextProfile);
+				setDraftProfile(nextProfile);
+			} catch (error) {
+				setProfileError(error instanceof Error ? error.message : "Could not load profile");
+			} finally {
+				setLoadingProfile(false);
+			}
+		};
+
+		load();
+	}, []);
 
 	const startEditing = () => {
 		setDraftProfile(profile);
 		setIsEditing(true);
 	};
 
-	const saveProfile = () => {
-		setProfile(draftProfile);
-		setIsEditing(false);
+	const saveProfile = async () => {
+		try {
+			setSavingProfile(true);
+			setProfileError("");
+			await updateMyProfile({
+				currentCollege: draftProfile.currentCollege,
+				targetUniversity: draftProfile.targetUniversity,
+				major: draftProfile.major,
+			});
+			setProfile(draftProfile);
+			setIsEditing(false);
+		} catch (error) {
+			setProfileError(error instanceof Error ? error.message : "Could not save profile");
+		} finally {
+			setSavingProfile(false);
+		}
 	};
 
 	const cancelEditing = () => {
@@ -48,6 +92,8 @@ export default function ProfileScreen() {
 				<Text style={{ color: "#ffffff", fontSize: 28, fontWeight: "800" }}>
 					Your Profile
 				</Text>
+				{loadingProfile ? <Text style={{ color: "rgba(255,255,255,0.6)" }}>Loading profile...</Text> : null}
+				{profileError ? <Text style={{ color: "#fca5a5" }}>{profileError}</Text> : null}
 
 				<Box
 					style={{
@@ -162,10 +208,11 @@ export default function ProfileScreen() {
 						</Button>
 						<Button
 							onPress={saveProfile}
+							isDisabled={savingProfile}
 							style={{ flex: 1, borderRadius: 14, backgroundColor: "#7c3aed", height: 50 }}
 						>
 							<ButtonText style={{ color: "#ffffff", fontWeight: "700" }}>
-								Save
+								{savingProfile ? "Saving..." : "Save"}
 							</ButtonText>
 						</Button>
 					</HStack>
