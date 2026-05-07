@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { ScrollView, TouchableOpacity } from "react-native";
+import { useState, useEffect } from "react";
+import { ScrollView, TouchableOpacity, ActivityIndicator, Alert } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 
@@ -8,8 +8,20 @@ import { Text } from "@/components/ui/text";
 import { HStack } from "@/components/ui/hstack";
 import { VStack } from "@/components/ui/vstack";
 import { Pressable } from "@/components/ui/pressable";
+import { userService } from "@/src/services";
 
-const PLANS = [
+// Type for transfer plans/paths
+interface TransferPlan {
+  id: string;
+  university: string;
+  program: string;
+  credits: number;
+  status: "In Progress" | "Planned" | "Complete";
+  sourceCollege: string;
+}
+
+// Mock data - replace with real API data
+const MOCK_PLANS: TransferPlan[] = [
   {
     id: "1",
     university: "University of State",
@@ -44,13 +56,36 @@ const statusColors: Record<string, string> = {
 
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState("All");
+  const [userName, setUserName] = useState("Student");
+  const [plans, setPlans] = useState<TransferPlan[]>(MOCK_PLANS);
+  const [loading, setLoading] = useState(true);
+
+  // Load user data on mount
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
+
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true);
+      const user = await userService.getCurrentUserProfile();
+      setUserName(user.name || "Student");
+      // TODO: Load actual transfer plans from API
+      // For now, using mock data
+    } catch (error: any) {
+      console.error("Failed to load dashboard data:", error);
+      // Still show mock data even if API fails
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredPlans =
     activeTab === "All"
-      ? PLANS
-      : PLANS.filter((plan) => plan.status === activeTab);
+      ? plans
+      : plans.filter((plan) => plan.status === activeTab);
 
-  const totalCredits = PLANS.reduce((sum, plan) => sum + plan.credits, 0);
+  const totalCredits = plans.reduce((sum, plan) => sum + plan.credits, 0);
 
   return (
     <ScrollView
@@ -75,7 +110,7 @@ export default function HomePage() {
               letterSpacing: -0.5,
             }}
           >
-            John Smith 👋
+            {userName} 👋
           </Text>
 
           <Text style={{ color: "rgba(192,132,252,0.65)", fontSize: 13 }}>

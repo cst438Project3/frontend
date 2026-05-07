@@ -7,10 +7,13 @@ import {
   KeyboardAvoidingView,
   Platform,
   TouchableOpacity,
+  Alert,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
+import * as WebBrowser from 'expo-web-browser';
 
 import { Button, ButtonText } from "../components/ui/button";
 import { Input, InputField } from "../components/ui/input";
@@ -19,24 +22,57 @@ import { VStack } from "../components/ui/vstack";
 import { HStack } from "../components/ui/hstack";
 import { Center } from "../components/ui/center";
 import { Divider } from "../components/ui/divider";
+import { authService, apiClient } from "@/src/services";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordVisible, setPasswordVisible] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleEmailLogin = () => {
-    // TODO: wire up email/password auth
-    // placeholder route 
-    router.replace("/landingPage");
+  const handleEmailLogin = async () => {
+    if (!email || !password) {
+      Alert.alert("Error", "Please enter both email and password");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      // TODO: Wire up email/password auth when backend supports it
+      // For now, we'll simulate authentication
+      Alert.alert("Info", "Email/password auth coming soon. Use OAuth for now.");
+    } catch (error: any) {
+      Alert.alert("Error", error.message || "Login failed");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleGoogleSignIn = () => {
-    // TODO:  Google OAuth here
+  const handleGoogleSignIn = async () => {
+    try {
+      setLoading(true);
+      const response = await authService.getGoogleAuthUrl();
+      
+      if (response?.authUrl) {
+        const result = await WebBrowser.openBrowserAsync(response.authUrl);
+        
+        if (result.type === 'success') {
+          // The auth code would typically be passed back via deep link
+          // For now, we'll store a test token and navigate
+          apiClient.setToken('test-token');
+          router.replace("/landingPage");
+        }
+      }
+    } catch (error: any) {
+      Alert.alert("Error", error.message || "Google sign in failed");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleGithubSignIn = () => {
-    // TODO: GitHub OAuth here
+    // TODO: GitHub OAuth implementation
+    Alert.alert("Info", "GitHub OAuth coming soon");
   };
 
   const handleSignUp = () => {
