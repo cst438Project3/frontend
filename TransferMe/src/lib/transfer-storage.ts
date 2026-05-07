@@ -303,6 +303,12 @@ export async function toggleSelectedClass(id: string): Promise<string[]> {
   return updated;
 }
 
+export async function setSelectedClassIds(ids: string[]): Promise<string[]> {
+  const normalized = [...new Set(ids.filter(Boolean))];
+  await AsyncStorage.setItem(SELECTED_CLASS_IDS_KEY, JSON.stringify(normalized));
+  return normalized;
+}
+
 export async function clearSelectedClasses() {
   await AsyncStorage.setItem(SELECTED_CLASS_IDS_KEY, JSON.stringify([]));
 }

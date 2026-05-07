@@ -19,13 +19,15 @@ import { VStack } from "@/components/ui/vstack";
 import { Pressable } from "@/components/ui/pressable";
 import {
   addSavedClass,
-  getKnownInstitutions,
+  getAllInstitutions,
   getSavedClasses,
   getSelectedClassIds,
   removeSavedClass,
   SavedClass,
+  setSelectedClassIds as persistSelectedClassIds,
   toggleSelectedClass,
 } from "@/src/lib/transfer-storage";
+import { COURSE_MAPPINGS_BY_UNIVERSITY, ALL_UNIVERSITIES } from "@/src/lib/course-mappings";
 
 const recentSearches = [
   "CST 300",
@@ -34,27 +36,38 @@ const recentSearches = [
   "CST 205",
 ];
 
+type ClassSuggestion = {
+  code: string;
+  title: string;
+  credits: number;
+  sourceCollege: string;
+};
+
 export default function SearchScreen() {
   const [query, setQuery] = useState("");
   const [classCode, setClassCode] = useState("");
   const [classTitle, setClassTitle] = useState("");
   const [credits, setCredits] = useState("");
+  const [bulkClassText, setBulkClassText] = useState("");
+  const [isClassInputFocused, setIsClassInputFocused] = useState(false);
   const [sourceCollege, setSourceCollege] = useState("");
   const [sourceSuggestions, setSourceSuggestions] = useState<string[]>([]);
   const [isSourceFocused, setIsSourceFocused] = useState(false);
   const [savedClasses, setSavedClasses] = useState<SavedClass[]>([]);
   const [selectedClassIds, setSelectedClassIds] = useState<string[]>([]);
+  const [checkedForDeleteIds, setCheckedForDeleteIds] = useState<string[]>([]);
 
   const loadData = useCallback(async () => {
     const [classes, selected, institutions] = await Promise.all([
       getSavedClasses(),
       getSelectedClassIds(),
-      getKnownInstitutions(),
+      getAllInstitutions(),
     ]);
 
     setSavedClasses(classes);
     setSelectedClassIds(selected);
-    setSourceSuggestions(institutions.sourceColleges);
+    setCheckedForDeleteIds((prev) => prev.filter((id) => classes.some((c) => c.id === id)));
+    setSourceSuggestions(institutions);
   }, []);
 
   useFocusEffect(
@@ -88,10 +101,145 @@ export default function SearchScreen() {
       .slice(0, 6);
   }, [sourceCollege, sourceSuggestions]);
 
+  const classSuggestions = useMemo(() => {
+    const seen = new Set<string>();
+    const suggestions: ClassSuggestion[] = [];
+
+    for (const item of savedClasses) {
+      const key = `${item.code}|${item.title}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      suggestions.push({
+        code: item.code,
+        title: item.title,
+        credits: item.credits,
+        sourceCollege: item.sourceCollege || "My Institution",
+      });
+    }
+
+    for (const university of ALL_UNIVERSITIES) {
+      const mappings = COURSE_MAPPINGS_BY_UNIVERSITY[university] || [];
+      for (const mapping of mappings) {
+        const code = `${mapping.sendingPrefix} ${mapping.sendingNumber}`;
+        const key = `${code}|${mapping.sendingTitle}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        suggestions.push({
+          code,
+          title: mapping.sendingTitle,
+          credits: mapping.sendingUnits,
+          sourceCollege: "Monterey Peninsula College",
+        });
+      }
+    }
+
+    return suggestions;
+  }, [savedClasses]);
+
+  const filteredClassSuggestions = useMemo(() => {
+    const codeQuery = classCode.trim().toLowerCase();
+    const titleQuery = classTitle.trim().toLowerCase();
+
+    if (!codeQuery && !titleQuery) {
+      return classSuggestions.slice(0, 6);
+    }
+
+    return classSuggestions
+      .filter((item) => {
+        const codeMatches = codeQuery ? item.code.toLowerCase().includes(codeQuery) : true;
+        const titleMatches = titleQuery ? item.title.toLowerCase().includes(titleQuery) : true;
+        return codeMatches && titleMatches;
+      })
+      .slice(0, 6);
+  }, [classCode, classSuggestions, classTitle]);
+
+  const shouldShowClassSuggestions = isClassInputFocused && filteredClassSuggestions.length > 0;
+
   // Show suggestions dropdown if focused, regardless of whether there are matches yet
   const shouldShowSourceSuggestions = isSourceFocused && sourceSuggestions.length > 0;
 
   const selectedCount = selectedClassIds.length;
+  const selectedAllVisibleForPlan =
+    filteredClasses.length > 0 && filteredClasses.every((item) => selectedClassIds.includes(item.id));
+  const selectedAllVisibleForDelete =
+    filteredClasses.length > 0 && filteredClasses.every((item) => checkedForDeleteIds.includes(item.id));
+
+  const normalizeCode = (value: string) =>
+    value
+      .toUpperCase()
+      .replace(/\s+/g, " ")
+      .trim();
+
+  const normalizeTitle = (value: string) => value.replace(/\s+/g, " ").trim();
+
+  const schoolAliases: Record<string, string> = {
+    "csu monterey bay": "California State University, Monterey Bay",
+    "cal state monterey bay": "California State University, Monterey Bay",
+    "monterey peninsula college": "Monterey Peninsula College",
+  };
+
+  const normalizeSchoolName = (value: string) => {
+    const raw = value.replace(/\s+/g, " ").trim();
+    if (!raw) return "My Institution";
+
+    const alias = schoolAliases[raw.toLowerCase()];
+    const candidate = alias || raw;
+
+    const exactMatch = sourceSuggestions.find(
+      (s) => s.toLowerCase() === candidate.toLowerCase()
+    );
+    if (exactMatch) return exactMatch;
+
+    const compact = candidate.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const fuzzyMatch = sourceSuggestions.find(
+      (s) => s.toLowerCase().replace(/[^a-z0-9]/g, "") === compact
+    );
+
+    return fuzzyMatch || candidate;
+  };
+
+  const parseBulkClasses = (text: string) => {
+    const lines = text
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    const parsed: Array<{
+      code: string;
+      title: string;
+      credits: number;
+      sourceCollege: string;
+    }> = [];
+
+    let invalidCount = 0;
+
+    for (const line of lines) {
+      const parts = line.split(",").map((p) => p.trim());
+      if (parts.length < 4) {
+        invalidCount += 1;
+        continue;
+      }
+
+      const code = normalizeCode(parts[0]);
+      const title = normalizeTitle(parts[1]);
+      const credits = Number.parseFloat(parts[2]);
+      const sourceCollege = normalizeSchoolName(parts.slice(3).join(", "));
+
+      if (!code || !title || !Number.isFinite(credits) || credits <= 0) {
+        invalidCount += 1;
+        continue;
+      }
+
+      parsed.push({
+        code,
+        title,
+        credits,
+        sourceCollege,
+      });
+    }
+
+    return { parsed, invalidCount };
+  };
 
   const handleAddClass = async () => {
     const parsedCredits = Number(credits);
@@ -135,10 +283,108 @@ export default function SearchScreen() {
     setSelectedClassIds(updated);
   };
 
+  const handleBulkImport = async () => {
+    if (!bulkClassText.trim()) {
+      Alert.alert("Nothing to import", "Paste classes first.");
+      return;
+    }
+
+    const { parsed, invalidCount } = parseBulkClasses(bulkClassText);
+    if (parsed.length === 0) {
+      Alert.alert(
+        "No valid rows",
+        invalidCount > 0
+          ? `Could not parse ${invalidCount} row(s). Check the format: CODE, TITLE, CREDITS, SCHOOL`
+          : "No rows found."
+      );
+      return;
+    }
+
+    const existingKeys = new Set(
+      savedClasses.map(
+        (c) =>
+          `${normalizeCode(c.code)}|${normalizeTitle(c.title).toLowerCase()}|${Number(c.credits)}|${normalizeSchoolName(c.sourceCollege).toLowerCase()}`
+      )
+    );
+
+    const uniqueToImport: typeof parsed = [];
+    const seenInBatch = new Set<string>();
+
+    for (const item of parsed) {
+      const key = `${item.code}|${item.title.toLowerCase()}|${Number(item.credits)}|${item.sourceCollege.toLowerCase()}`;
+      if (existingKeys.has(key) || seenInBatch.has(key)) {
+        continue;
+      }
+      seenInBatch.add(key);
+      uniqueToImport.push(item);
+    }
+
+    if (uniqueToImport.length === 0) {
+      Alert.alert("Nothing new", "All parsed classes already exist.");
+      return;
+    }
+
+    for (const item of uniqueToImport) {
+      await addSavedClass(item);
+    }
+
+    setBulkClassText("");
+    await loadData();
+
+    Alert.alert(
+      "Import complete",
+      `Added ${uniqueToImport.length} classes${invalidCount ? `, skipped ${invalidCount} invalid row(s)` : ""}.`
+    );
+  };
+
   const handleRemoveClass = async (id: string) => {
     const updated = await removeSavedClass(id);
     setSavedClasses(updated.classes);
     setSelectedClassIds(updated.selectedIds);
+    setCheckedForDeleteIds((prev) => prev.filter((itemId) => itemId !== id));
+  };
+
+  const handleToggleDeleteCheck = (id: string) => {
+    setCheckedForDeleteIds((prev) =>
+      prev.includes(id) ? prev.filter((itemId) => itemId !== id) : [...prev, id]
+    );
+  };
+
+  const handleCheckAllForPlan = async () => {
+    const visibleIds = filteredClasses.map((item) => item.id);
+    if (visibleIds.length === 0) return;
+
+    const nextSelected = selectedAllVisibleForPlan
+      ? selectedClassIds.filter((id) => !visibleIds.includes(id))
+      : [...new Set([...selectedClassIds, ...visibleIds])];
+
+    const persisted = await persistSelectedClassIds(nextSelected);
+    setSelectedClassIds(persisted);
+  };
+
+  const handleCheckAllForDelete = () => {
+    const visibleIds = filteredClasses.map((item) => item.id);
+    if (visibleIds.length === 0) return;
+
+    setCheckedForDeleteIds((prev) =>
+      selectedAllVisibleForDelete
+        ? prev.filter((id) => !visibleIds.includes(id))
+        : [...new Set([...prev, ...visibleIds])]
+    );
+  };
+
+  const handleDeleteChecked = async () => {
+    if (checkedForDeleteIds.length === 0) {
+      Alert.alert("No classes checked", "Check classes in the Delete column first.");
+      return;
+    }
+
+    for (const id of checkedForDeleteIds) {
+      await removeSavedClass(id);
+    }
+
+    setCheckedForDeleteIds([]);
+    await loadData();
   };
 
   return (
@@ -258,7 +504,14 @@ export default function SearchScreen() {
               placeholder="Class code (e.g., CST 336)"
               placeholderTextColor="rgba(255,255,255,0.28)"
               value={classCode}
-              onChangeText={setClassCode}
+              onFocus={() => setIsClassInputFocused(true)}
+              onBlur={() => {
+                setTimeout(() => setIsClassInputFocused(false), 120);
+              }}
+              onChangeText={(value) => {
+                setClassCode(value);
+                setIsClassInputFocused(true);
+              }}
               style={{
                 backgroundColor: "rgba(255,255,255,0.05)",
                 borderWidth: 1,
@@ -269,6 +522,46 @@ export default function SearchScreen() {
                 paddingVertical: 10,
               }}
             />
+
+            {shouldShowClassSuggestions && (
+              <Box
+                style={{
+                  backgroundColor: "rgba(17, 24, 39, 0.95)",
+                  borderWidth: 1,
+                  borderColor: "rgba(147, 51, 234, 0.35)",
+                  borderRadius: 12,
+                  overflow: "hidden",
+                }}
+              >
+                {filteredClassSuggestions.map((item) => (
+                  <Pressable
+                    key={`${item.code}-${item.title}`}
+                    onPress={() => {
+                      setClassCode(item.code);
+                      setClassTitle(item.title);
+                      setCredits(String(item.credits));
+                      if (!sourceCollege.trim()) {
+                        setSourceCollege(item.sourceCollege);
+                      }
+                      setIsClassInputFocused(false);
+                    }}
+                    style={{
+                      paddingHorizontal: 12,
+                      paddingVertical: 10,
+                      borderBottomWidth: 1,
+                      borderBottomColor: "rgba(147, 51, 234, 0.15)",
+                    }}
+                  >
+                    <Text style={{ color: "#e9d5ff", fontSize: 13, fontWeight: "700" }}>
+                      {item.code}
+                    </Text>
+                    <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 12 }}>
+                      {item.title}
+                    </Text>
+                  </Pressable>
+                ))}
+              </Box>
+            )}
 
             <TextInput
               placeholder="Class title"
@@ -374,6 +667,52 @@ export default function SearchScreen() {
             <Text style={{ color: "rgba(255,255,255,0.45)", fontSize: 12 }}>
               {selectedCount} selected for plan generation
             </Text>
+
+            <Text
+              style={{
+                fontSize: 13,
+                fontWeight: "700",
+                color: "rgba(255,255,255,0.55)",
+                textTransform: "uppercase",
+                marginTop: 10,
+              }}
+            >
+              Bulk Import Classes
+            </Text>
+
+            <TextInput
+              placeholder="Paste rows: CODE, TITLE, CREDITS, SCHOOL"
+              placeholderTextColor="rgba(255,255,255,0.28)"
+              value={bulkClassText}
+              onChangeText={setBulkClassText}
+              multiline
+              numberOfLines={8}
+              textAlignVertical="top"
+              style={{
+                backgroundColor: "rgba(255,255,255,0.05)",
+                borderWidth: 1,
+                borderColor: "rgba(147, 51, 234, 0.28)",
+                borderRadius: 12,
+                color: "#ffffff",
+                paddingHorizontal: 12,
+                paddingVertical: 10,
+                minHeight: 140,
+              }}
+            />
+
+            <TouchableOpacity
+              onPress={handleBulkImport}
+              style={{
+                backgroundColor: "rgba(124, 58, 237, 0.85)",
+                borderRadius: 12,
+                paddingVertical: 12,
+                alignItems: "center",
+              }}
+            >
+              <Text style={{ color: "white", fontWeight: "700" }}>
+                Import Pasted Classes
+              </Text>
+            </TouchableOpacity>
           </VStack>
 
           <VStack space="md">
@@ -394,6 +733,56 @@ export default function SearchScreen() {
                   Generate Plan
                 </Text>
               </Pressable>
+            </HStack>
+
+            <HStack space="sm" style={{ flexWrap: "wrap" }}>
+              <TouchableOpacity
+                onPress={handleCheckAllForPlan}
+                style={{
+                  backgroundColor: "rgba(124, 58, 237, 0.2)",
+                  borderWidth: 1,
+                  borderColor: "rgba(124, 58, 237, 0.45)",
+                  borderRadius: 10,
+                  paddingHorizontal: 10,
+                  paddingVertical: 6,
+                }}
+              >
+                <Text style={{ color: "#ddd6fe", fontSize: 12, fontWeight: "700" }}>
+                  {selectedAllVisibleForPlan ? "Uncheck All (Plan)" : "Check All (Plan)"}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={handleCheckAllForDelete}
+                style={{
+                  backgroundColor: "rgba(239, 68, 68, 0.14)",
+                  borderWidth: 1,
+                  borderColor: "rgba(239, 68, 68, 0.35)",
+                  borderRadius: 10,
+                  paddingHorizontal: 10,
+                  paddingVertical: 6,
+                }}
+              >
+                <Text style={{ color: "#fecaca", fontSize: 12, fontWeight: "700" }}>
+                  {selectedAllVisibleForDelete ? "Uncheck All (Delete)" : "Check All (Delete)"}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={handleDeleteChecked}
+                style={{
+                  backgroundColor: "rgba(220, 38, 38, 0.2)",
+                  borderWidth: 1,
+                  borderColor: "rgba(220, 38, 38, 0.45)",
+                  borderRadius: 10,
+                  paddingHorizontal: 10,
+                  paddingVertical: 6,
+                }}
+              >
+                <Text style={{ color: "#fca5a5", fontSize: 12, fontWeight: "700" }}>
+                  Delete Checked ({checkedForDeleteIds.length})
+                </Text>
+              </TouchableOpacity>
             </HStack>
 
             {filteredClasses.length === 0 ? (
@@ -434,46 +823,96 @@ export default function SearchScreen() {
               <VStack space="sm">
                 {filteredClasses.map((item) => {
                   const isSelected = selectedClassIds.includes(item.id);
+                  const isCheckedForDelete = checkedForDeleteIds.includes(item.id);
+
                   return (
-                    <Pressable
+                    <Box
                       key={item.id}
-                      onPress={() => handleToggleSelected(item.id)}
+                      style={{
+                        backgroundColor: "rgba(255,255,255,0.04)",
+                        borderRadius: 14,
+                        borderWidth: 1,
+                        borderColor: isSelected
+                          ? "rgba(196, 181, 253, 0.85)"
+                          : "rgba(147, 51, 234, 0.18)",
+                        padding: 14,
+                      }}
                     >
-                      <Box
-                        style={{
-                          backgroundColor: "rgba(255,255,255,0.04)",
-                          borderRadius: 14,
-                          borderWidth: 1,
-                          borderColor: isSelected
-                            ? "rgba(196, 181, 253, 0.85)"
-                            : "rgba(147, 51, 234, 0.18)",
-                          padding: 14,
-                        }}
-                      >
-                        <HStack style={{ justifyContent: "space-between", alignItems: "center" }}>
-                          <VStack space="xs" style={{ flex: 1 }}>
-                            <Text style={{ color: "#fff", fontSize: 15, fontWeight: "700" }}>
-                              {item.code} · {item.title}
-                            </Text>
-                            <Text style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>
-                              {item.credits} credits · {item.sourceCollege}
-                            </Text>
-                          </VStack>
+                      <HStack style={{ justifyContent: "space-between", alignItems: "center" }}>
+                        <VStack space="xs" style={{ flex: 1 }}>
+                          <Text style={{ color: "#fff", fontSize: 15, fontWeight: "700" }}>
+                            {item.code} · {item.title}
+                          </Text>
+                          <Text style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>
+                            {item.credits} credits · {item.sourceCollege}
+                          </Text>
+                        </VStack>
 
-                          <HStack space="sm" style={{ alignItems: "center" }}>
-                            <Text style={{ color: isSelected ? "#c4b5fd" : "rgba(255,255,255,0.4)", fontSize: 12, fontWeight: "700" }}>
-                              {isSelected ? "SELECTED" : "SELECT"}
+                        <HStack space="md" style={{ alignItems: "center" }}>
+                          <TouchableOpacity
+                            onPress={() => handleToggleSelected(item.id)}
+                            style={{ alignItems: "center" }}
+                          >
+                            <Box
+                              style={{
+                                width: 20,
+                                height: 20,
+                                borderRadius: 6,
+                                borderWidth: 1,
+                                borderColor: "rgba(196, 181, 253, 0.8)",
+                                backgroundColor: isSelected
+                                  ? "rgba(196, 181, 253, 0.85)"
+                                  : "transparent",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                marginBottom: 3,
+                              }}
+                            >
+                              {isSelected ? (
+                                <Text style={{ color: "#1f1238", fontSize: 12 }}>✓</Text>
+                              ) : null}
+                            </Box>
+                            <Text style={{ color: "#ddd6fe", fontSize: 10, fontWeight: "700" }}>
+                              PLAN
                             </Text>
+                          </TouchableOpacity>
 
-                            <TouchableOpacity onPress={() => handleRemoveClass(item.id)}>
-                              <Text style={{ color: "#fca5a5", fontSize: 12, fontWeight: "700" }}>
-                                REMOVE
-                              </Text>
-                            </TouchableOpacity>
-                          </HStack>
+                          <TouchableOpacity
+                            onPress={() => handleToggleDeleteCheck(item.id)}
+                            style={{ alignItems: "center" }}
+                          >
+                            <Box
+                              style={{
+                                width: 20,
+                                height: 20,
+                                borderRadius: 6,
+                                borderWidth: 1,
+                                borderColor: "rgba(252, 165, 165, 0.8)",
+                                backgroundColor: isCheckedForDelete
+                                  ? "rgba(252, 165, 165, 0.85)"
+                                  : "transparent",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                marginBottom: 3,
+                              }}
+                            >
+                              {isCheckedForDelete ? (
+                                <Text style={{ color: "#3f0f0f", fontSize: 12 }}>✓</Text>
+                              ) : null}
+                            </Box>
+                            <Text style={{ color: "#fecaca", fontSize: 10, fontWeight: "700" }}>
+                              DELETE
+                            </Text>
+                          </TouchableOpacity>
+
+                          <TouchableOpacity onPress={() => handleRemoveClass(item.id)}>
+                            <Text style={{ color: "#fca5a5", fontSize: 11, fontWeight: "700" }}>
+                              REMOVE
+                            </Text>
+                          </TouchableOpacity>
                         </HStack>
-                      </Box>
-                    </Pressable>
+                      </HStack>
+                    </Box>
                   );
                 })}
               </VStack>
