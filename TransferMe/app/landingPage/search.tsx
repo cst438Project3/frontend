@@ -1,11 +1,14 @@
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   View,
   StatusBar,
   ScrollView,
   TextInput,
   TouchableOpacity,
+  Alert,
 } from "react-native";
+import { router } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 
@@ -14,6 +17,14 @@ import { Text } from "@/components/ui/text";
 import { HStack } from "@/components/ui/hstack";
 import { VStack } from "@/components/ui/vstack";
 import { Pressable } from "@/components/ui/pressable";
+import {
+  addSavedClass,
+  getSavedClasses,
+  getSelectedClassIds,
+  removeSavedClass,
+  SavedClass,
+  toggleSelectedClass,
+} from "@/src/lib/transfer-storage";
 
 const recentSearches = [
   "CST 300",
@@ -24,6 +35,78 @@ const recentSearches = [
 
 export default function SearchScreen() {
   const [query, setQuery] = useState("");
+  const [classCode, setClassCode] = useState("");
+  const [classTitle, setClassTitle] = useState("");
+  const [credits, setCredits] = useState("");
+  const [sourceCollege, setSourceCollege] = useState("");
+  const [savedClasses, setSavedClasses] = useState<SavedClass[]>([]);
+  const [selectedClassIds, setSelectedClassIds] = useState<string[]>([]);
+
+  const loadData = useCallback(async () => {
+    const [classes, selected] = await Promise.all([
+      getSavedClasses(),
+      getSelectedClassIds(),
+    ]);
+    setSavedClasses(classes);
+    setSelectedClassIds(selected);
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [loadData])
+  );
+
+  const filteredClasses = useMemo(() => {
+    if (!query.trim()) return savedClasses;
+    const lower = query.toLowerCase();
+    return savedClasses.filter(
+      (item) =>
+        item.code.toLowerCase().includes(lower) ||
+        item.title.toLowerCase().includes(lower) ||
+        item.sourceCollege.toLowerCase().includes(lower)
+    );
+  }, [query, savedClasses]);
+
+  const selectedCount = selectedClassIds.length;
+
+  const handleAddClass = async () => {
+    const parsedCredits = Number(credits);
+
+    if (!classCode.trim() || !classTitle.trim() || !sourceCollege.trim()) {
+      Alert.alert("Missing details", "Please fill in all class fields.");
+      return;
+    }
+
+    if (!Number.isFinite(parsedCredits) || parsedCredits <= 0) {
+      Alert.alert("Invalid credits", "Credits must be a number greater than 0.");
+      return;
+    }
+
+    const updated = await addSavedClass({
+      code: classCode,
+      title: classTitle,
+      credits: parsedCredits,
+      sourceCollege,
+    });
+
+    setSavedClasses(updated);
+    setClassCode("");
+    setClassTitle("");
+    setCredits("");
+    setSourceCollege("");
+  };
+
+  const handleToggleSelected = async (id: string) => {
+    const updated = await toggleSelectedClass(id);
+    setSelectedClassIds(updated);
+  };
+
+  const handleRemoveClass = async (id: string) => {
+    const updated = await removeSavedClass(id);
+    setSavedClasses(updated.classes);
+    setSelectedClassIds(updated.selectedIds);
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#0a0a0a" }}>
@@ -80,7 +163,7 @@ export default function SearchScreen() {
             </Text>
 
             <Text style={{ fontSize: 14, color: "rgba(255,255,255,0.45)" }}>
-              Search courses and find transfer equivalencies.
+              Add your classes, select them, then generate a transfer plan.
             </Text>
           </VStack>
 
@@ -117,7 +200,16 @@ export default function SearchScreen() {
             </HStack>
           </Box>
 
-          <VStack space="md">
+          <VStack
+            space="sm"
+            style={{
+              backgroundColor: "rgba(255,255,255,0.04)",
+              borderRadius: 18,
+              borderWidth: 1,
+              borderColor: "rgba(147, 51, 234, 0.25)",
+              padding: 14,
+            }}
+          >
             <Text
               style={{
                 fontSize: 13,
@@ -126,30 +218,95 @@ export default function SearchScreen() {
                 textTransform: "uppercase",
               }}
             >
-              Recent Searches
+              Add Class
             </Text>
 
-            <HStack space="sm" style={{ flexWrap: "wrap" }}>
-              {recentSearches.map((item) => (
-                <Pressable key={item} onPress={() => setQuery(item)}>
-                  <Box
-                    style={{
-                      paddingHorizontal: 14,
-                      paddingVertical: 9,
-                      borderRadius: 999,
-                      backgroundColor: "rgba(147, 51, 234, 0.15)",
-                      borderWidth: 1,
-                      borderColor: "rgba(147, 51, 234, 0.28)",
-                      marginBottom: 8,
-                    }}
-                  >
-                    <Text style={{ color: "#d8b4fe", fontSize: 13 }}>
-                      {item}
-                    </Text>
-                  </Box>
-                </Pressable>
-              ))}
+            <TextInput
+              placeholder="Class code (e.g., CST 336)"
+              placeholderTextColor="rgba(255,255,255,0.28)"
+              value={classCode}
+              onChangeText={setClassCode}
+              style={{
+                backgroundColor: "rgba(255,255,255,0.05)",
+                borderWidth: 1,
+                borderColor: "rgba(147, 51, 234, 0.28)",
+                borderRadius: 12,
+                color: "#ffffff",
+                paddingHorizontal: 12,
+                paddingVertical: 10,
+              }}
+            />
+
+            <TextInput
+              placeholder="Class title"
+              placeholderTextColor="rgba(255,255,255,0.28)"
+              value={classTitle}
+              onChangeText={setClassTitle}
+              style={{
+                backgroundColor: "rgba(255,255,255,0.05)",
+                borderWidth: 1,
+                borderColor: "rgba(147, 51, 234, 0.28)",
+                borderRadius: 12,
+                color: "#ffffff",
+                paddingHorizontal: 12,
+                paddingVertical: 10,
+              }}
+            />
+
+            <HStack space="sm">
+              <TextInput
+                placeholder="Credits"
+                placeholderTextColor="rgba(255,255,255,0.28)"
+                value={credits}
+                onChangeText={setCredits}
+                keyboardType="numeric"
+                style={{
+                  flex: 1,
+                  backgroundColor: "rgba(255,255,255,0.05)",
+                  borderWidth: 1,
+                  borderColor: "rgba(147, 51, 234, 0.28)",
+                  borderRadius: 12,
+                  color: "#ffffff",
+                  paddingHorizontal: 12,
+                  paddingVertical: 10,
+                }}
+              />
+
+              <TextInput
+                placeholder="Source college"
+                placeholderTextColor="rgba(255,255,255,0.28)"
+                value={sourceCollege}
+                onChangeText={setSourceCollege}
+                style={{
+                  flex: 2,
+                  backgroundColor: "rgba(255,255,255,0.05)",
+                  borderWidth: 1,
+                  borderColor: "rgba(147, 51, 234, 0.28)",
+                  borderRadius: 12,
+                  color: "#ffffff",
+                  paddingHorizontal: 12,
+                  paddingVertical: 10,
+                }}
+              />
             </HStack>
+
+            <TouchableOpacity
+              onPress={handleAddClass}
+              style={{
+                backgroundColor: "#7c3aed",
+                borderRadius: 12,
+                paddingVertical: 12,
+                alignItems: "center",
+              }}
+            >
+              <Text style={{ color: "white", fontWeight: "700" }}>
+                Save Class
+              </Text>
+            </TouchableOpacity>
+
+            <Text style={{ color: "rgba(255,255,255,0.45)", fontSize: 12 }}>
+              {selectedCount} selected for plan generation
+            </Text>
           </VStack>
 
           <VStack space="md">
@@ -162,11 +319,17 @@ export default function SearchScreen() {
                   textTransform: "uppercase",
                 }}
               >
-                Results
+                Saved Classes
               </Text>
+
+              <Pressable onPress={() => router.push("/landingPage/transferPlan" as any)}>
+                <Text style={{ color: "#c084fc", fontSize: 13, fontWeight: "700" }}>
+                  Generate Plan
+                </Text>
+              </Pressable>
             </HStack>
 
-            {query.length === 0 ? (
+            {filteredClasses.length === 0 ? (
               <Box
                 style={{
                   backgroundColor: "rgba(255,255,255,0.04)",
@@ -187,7 +350,7 @@ export default function SearchScreen() {
                     marginBottom: 6,
                   }}
                 >
-                  Start searching
+                  No classes yet
                 </Text>
 
                 <Text
@@ -197,33 +360,92 @@ export default function SearchScreen() {
                     textAlign: "center",
                   }}
                 >
-                  Enter a course name, code, or school to find transfer matches.
+                  Add classes above to build transfer plans.
                 </Text>
               </Box>
             ) : (
-              <Box
-                style={{
-                  backgroundColor: "rgba(255,255,255,0.04)",
-                  borderRadius: 20,
-                  padding: 20,
-                  borderWidth: 1,
-                  borderColor: "rgba(147, 51, 234, 0.18)",
-                  alignItems: "center",
-                }}
-              >
-                <Text style={{ fontSize: 22, marginBottom: 8 }}>⏳</Text>
+              <VStack space="sm">
+                {filteredClasses.map((item) => {
+                  const isSelected = selectedClassIds.includes(item.id);
+                  return (
+                    <Pressable
+                      key={item.id}
+                      onPress={() => handleToggleSelected(item.id)}
+                    >
+                      <Box
+                        style={{
+                          backgroundColor: "rgba(255,255,255,0.04)",
+                          borderRadius: 14,
+                          borderWidth: 1,
+                          borderColor: isSelected
+                            ? "rgba(196, 181, 253, 0.85)"
+                            : "rgba(147, 51, 234, 0.18)",
+                          padding: 14,
+                        }}
+                      >
+                        <HStack style={{ justifyContent: "space-between", alignItems: "center" }}>
+                          <VStack space="xs" style={{ flex: 1 }}>
+                            <Text style={{ color: "#fff", fontSize: 15, fontWeight: "700" }}>
+                              {item.code} · {item.title}
+                            </Text>
+                            <Text style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>
+                              {item.credits} credits · {item.sourceCollege}
+                            </Text>
+                          </VStack>
 
-                <Text
-                  style={{
-                    color: "#ffffff",
-                    fontSize: 15,
-                    fontWeight: "600",
-                  }}
-                >
-                  Searching...
-                </Text>
-              </Box>
+                          <HStack space="sm" style={{ alignItems: "center" }}>
+                            <Text style={{ color: isSelected ? "#c4b5fd" : "rgba(255,255,255,0.4)", fontSize: 12, fontWeight: "700" }}>
+                              {isSelected ? "SELECTED" : "SELECT"}
+                            </Text>
+
+                            <TouchableOpacity onPress={() => handleRemoveClass(item.id)}>
+                              <Text style={{ color: "#fca5a5", fontSize: 12, fontWeight: "700" }}>
+                                REMOVE
+                              </Text>
+                            </TouchableOpacity>
+                          </HStack>
+                        </HStack>
+                      </Box>
+                    </Pressable>
+                  );
+                })}
+              </VStack>
             )}
+          </VStack>
+
+          <VStack space="md">
+            <Text
+              style={{
+                fontSize: 13,
+                fontWeight: "700",
+                color: "rgba(255,255,255,0.55)",
+                textTransform: "uppercase",
+              }}
+            >
+              Quick Fill
+            </Text>
+
+            <HStack space="sm" style={{ flexWrap: "wrap" }}>
+              {recentSearches.map((item) => (
+                <Pressable key={item} onPress={() => setClassCode(item)}>
+                  <Box
+                    style={{
+                      paddingHorizontal: 14,
+                      paddingVertical: 9,
+                      borderRadius: 999,
+                      backgroundColor: "rgba(147, 51, 234, 0.15)",
+                      borderWidth: 1,
+                      borderColor: "rgba(147, 51, 234, 0.28)",
+                      marginBottom: 8,
+                    }}
+                  >
+                    <Text style={{ color: "#d8b4fe", fontSize: 13 }}>
+                      {item}
+                    </Text>
+                  </Box>
+                </Pressable>
+              ))}
+            </HStack>
           </VStack>
         </VStack>
       </ScrollView>
