@@ -8,7 +8,7 @@ export type StudentProfile = {
 
 export type AuthSession = {
   accessToken: string;
-  refreshToken: string;
+  refreshToken: string | null;
   tokenType: string;
   expiresIn: number | null;
   student: StudentProfile | null;

@@ -63,6 +63,7 @@ export default function LoginScreen() {
   }, [isAuthenticated, isLoading]);
 
   useEffect(() => {
+    const nonce = request?.nonce;
     const completeGoogleSignIn = async () => {
       if (response?.type !== "success") {
         if (response?.type === "error") {
@@ -91,7 +92,7 @@ export default function LoginScreen() {
       }
 
       try {
-        await signInWithGoogleTokens({ idToken, accessToken });
+        await signInWithGoogleTokens({ idToken, accessToken, nonce });
         router.replace("/landingPage");
       } catch (error) {
         const message =
@@ -103,7 +104,7 @@ export default function LoginScreen() {
     };
 
     void completeGoogleSignIn();
-  }, [response, signInWithGoogleTokens]);
+  }, [response, signInWithGoogleTokens, request?.nonce]);
 
   const handleEmailLogin = () => {
     Alert.alert("Not yet available", "Email/password auth is not wired up yet.");

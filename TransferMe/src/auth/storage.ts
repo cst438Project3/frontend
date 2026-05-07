@@ -5,7 +5,7 @@ const AUTH_STORAGE_KEY = "transferme.auth";
 
 export async function saveAuthState(serialized: string) {
   if (Platform.OS === "web") {
-    window.localStorage.setItem(AUTH_STORAGE_KEY, serialized);
+    window.sessionStorage.setItem(AUTH_STORAGE_KEY, serialized);
     return;
   }
 
@@ -14,7 +14,7 @@ export async function saveAuthState(serialized: string) {
 
 export async function loadAuthState() {
   if (Platform.OS === "web") {
-    return window.localStorage.getItem(AUTH_STORAGE_KEY);
+    return window.sessionStorage.getItem(AUTH_STORAGE_KEY);
   }
 
   return SecureStore.getItemAsync(AUTH_STORAGE_KEY);
@@ -22,7 +22,7 @@ export async function loadAuthState() {
 
 export async function clearAuthState() {
   if (Platform.OS === "web") {
-    window.localStorage.removeItem(AUTH_STORAGE_KEY);
+    window.sessionStorage.removeItem(AUTH_STORAGE_KEY);
     return;
   }
 

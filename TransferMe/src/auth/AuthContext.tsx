@@ -15,6 +15,7 @@ import {
   logout as logoutRequest,
   refreshSession,
 } from "./api";
+import { Platform } from "react-native";
 import { clearAuthState, loadAuthState, saveAuthState } from "./storage";
 import type { AuthMe, AuthSession, StoredAuthState } from "./types";
 
@@ -28,6 +29,7 @@ type AuthContextValue = {
   signInWithGoogleTokens: (payload: {
     idToken: string;
     accessToken?: string;
+    nonce?: string;
   }) => Promise<void>;
   logout: () => Promise<void>;
 };
@@ -35,6 +37,16 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 function serializeState(state: StoredAuthState) {
+  if (Platform.OS === "web") {
+    return JSON.stringify({
+      ...state,
+      session: {
+        ...state.session,
+        refreshToken: null,
+      },
+    } satisfies StoredAuthState);
+  }
+
   return JSON.stringify(state);
 }
 
@@ -79,6 +91,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
           return;
         } catch {
+          if (!stored.session.refreshToken) {
+            throw new Error("Stored session cannot be refreshed.");
+          }
+
           const refreshedSession = await refreshSession(stored.session.refreshToken);
           const currentUser = await getCurrentUser(refreshedSession.accessToken);
 
@@ -105,7 +121,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signInWithGoogleTokens = useCallback(
-    async (payload: { idToken: string; accessToken?: string }) => {
+    async (payload: { idToken: string; accessToken?: string; nonce?: string }) => {
       const nextSession = await exchangeGoogleTokens(payload);
       const nextUser = await getCurrentUser(nextSession.accessToken);
 

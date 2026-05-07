@@ -51,6 +51,7 @@ async function requestJson<T>(
 export function exchangeGoogleTokens(payload: {
   idToken: string;
   accessToken?: string;
+  nonce?: string;
 }) {
   return requestJson<AuthSession>("/api/auth/google/exchange", {
     method: "POST",
