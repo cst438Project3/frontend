@@ -1,5 +1,6 @@
 import { useState } from "react";
 import {
+  Alert,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
@@ -15,20 +16,107 @@ import { HStack } from "@/components/ui/hstack";
 import { Button, ButtonText } from "@/components/ui/button";
 import { Input, InputField, InputSlot } from "@/components/ui/input";
 import { Pressable } from "@/components/ui/pressable";
+import { useAuth } from "@/src/lib/auth";
+
+const BACKEND_BASE_URL = "http://localhost:8080";
 
 export default function SignUpScreen() {
+  const { signInWithLocal, signInWithGoogle } = useAuth();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
+  const [currentInstitutionId, setCurrentInstitutionId] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [confirmVisible, setConfirmVisible] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const passwordMismatch =
     confirmPassword.length > 0 && password !== confirmPassword;
 
-  const handleSignUp = () => {
-    // TODO: wire up registration
+  const handleSignUp = async () => {
+    setError(null);
+    const parsedInstitutionId = Number(currentInstitutionId);
+
+    if (!email.trim()) {
+      setError("Email is required.");
+      return;
+    }
+    if (currentInstitutionId.trim() && !Number.isFinite(parsedInstitutionId)) {
+      setError("Institution ID must be a valid number.");
+      return;
+    }
+    if (passwordMismatch || password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Step 1: create the account
+      const res = await fetch(`${BACKEND_BASE_URL}/api/users/register/local`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: email.trim(),
+          name: fullName.trim() || undefined,
+          currentInstitutionId:
+            currentInstitutionId.trim() && Number.isFinite(parsedInstitutionId)
+              ? parsedInstitutionId
+              : undefined,
+        }),
+      });
+
+      if (res.status === 409) {
+        setError("An account with this email already exists.");
+        return;
+      }
+      if (!res.ok) {
+        const text = await res.text();
+        setError(text || "Registration failed. Please try again.");
+        return;
+      }
+
+      // Step 2: open a session and navigate into the app
+      await signInWithLocal(
+        email.trim(),
+        fullName.trim() || undefined,
+        currentInstitutionId.trim() && Number.isFinite(parsedInstitutionId)
+          ? parsedInstitutionId
+          : undefined
+      );
+      router.replace("/landingPage");
+    } catch (e) {
+      const message =
+        e instanceof Error && e.message
+          ? e.message
+          : "Could not connect to the server. Please try again.";
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    try {
+      setGoogleLoading(true);
+      await signInWithGoogle();
+      router.replace("/landingPage");
+    } catch (e) {
+      const message =
+        e instanceof Error && e.message
+          ? e.message
+          : "Google sign-in failed. Please try again.";
+      Alert.alert("Sign-in error", message);
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
+  const handleGithubSignIn = () => {
+    Alert.alert("Coming soon", "GitHub sign-in is not wired up yet.");
   };
 
   return (
@@ -104,6 +192,22 @@ export default function SignUpScreen() {
 
             <VStack className="gap-2">
               <Text className="text-xs font-semibold text-white/55 uppercase tracking-widest">
+                Current Institution ID (optional)
+              </Text>
+              <Input className="bg-white/5 border border-purple-700/30 rounded-xl h-12">
+                <InputField
+                  placeholder="e.g., 12"
+                  placeholderTextColor="rgba(255,255,255,0.2)"
+                  value={currentInstitutionId}
+                  onChangeText={setCurrentInstitutionId}
+                  keyboardType="numeric"
+                  className="text-white text-base px-4"
+                />
+              </Input>
+            </VStack>
+
+            <VStack className="gap-2">
+              <Text className="text-xs font-semibold text-white/55 uppercase tracking-widest">
                 Password
               </Text>
               <Input className="bg-white/5 border border-purple-700/30 rounded-xl h-12">
@@ -159,14 +263,42 @@ export default function SignUpScreen() {
               )}
             </VStack>
 
+            {error && (
+              <Text className="text-xs text-red-400 text-center">{error}</Text>
+            )}
+
             <Button
               onPress={handleSignUp}
-              className="rounded-xl h-14 bg-purple-700 mt-1"
+              disabled={loading}
+              className={`rounded-xl h-14 mt-1 ${loading ? "bg-purple-700/50" : "bg-purple-700"}`}
             >
               <ButtonText className="text-base font-bold text-white tracking-wide">
-                Create Account
+                {loading ? "Creating Account…" : "Create Account"}
               </ButtonText>
             </Button>
+
+            <Text className="text-xs text-white/35 text-center mt-2">or continue with</Text>
+
+            <HStack className="gap-3">
+              <Button
+                onPress={handleGoogleSignIn}
+                disabled={googleLoading}
+                className="flex-1 rounded-xl h-12 bg-white"
+              >
+                <ButtonText className="text-sm font-semibold text-black">
+                  {googleLoading ? "Signing in..." : "Google"}
+                </ButtonText>
+              </Button>
+
+              <Button
+                onPress={handleGithubSignIn}
+                className="flex-1 rounded-xl h-12 bg-black border border-purple-700/40"
+              >
+                <ButtonText className="text-sm font-semibold text-white">
+                  GitHub
+                </ButtonText>
+              </Button>
+            </HStack>
           </VStack>
           <HStack className="justify-center items-center">
             <Text className="text-sm text-white/40">

@@ -1,5 +1,6 @@
 import { Platform, StatusBar } from "react-native";
 import { Slot, router, usePathname } from "expo-router";
+import { useEffect } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Box } from "@/components/ui/box";
@@ -7,6 +8,7 @@ import { Text } from "@/components/ui/text";
 import { HStack } from "@/components/ui/hstack";
 import { VStack } from "@/components/ui/vstack";
 import { Pressable } from "@/components/ui/pressable";
+import { useAuth } from "@/src/lib/auth";
 
 const NAV_ITEMS = [
   { icon: "⊞", label: "Home", route: "/landingPage" },
@@ -18,7 +20,13 @@ const NAV_ITEMS = [
 
 const isWeb = Platform.OS === "web";
 
-function TopNavBar({ pathname }: { pathname: string }) {
+function TopNavBar({
+  pathname,
+  displayName,
+}: {
+  pathname: string;
+  displayName: string;
+}) {
   return (
     <HStack
       className="items-center justify-between px-6"
@@ -78,9 +86,9 @@ function TopNavBar({ pathname }: { pathname: string }) {
         }}
       >
         <Box className="w-7 h-7 rounded-full bg-purple-600 items-center justify-center">
-          <Text className="text-xs font-bold text-white">J</Text>
+          <Text className="text-xs font-bold text-white">{displayName.charAt(0)}</Text>
         </Box>
-        <Text className="text-sm font-semibold text-white">John Smith</Text>
+        <Text className="text-sm font-semibold text-white">{displayName}</Text>
         <Text className="text-xs text-purple-400">▾</Text>
       </Pressable>
     </HStack>
@@ -137,7 +145,7 @@ function BottomTabBar({ pathname }: { pathname: string }) {
   );
 }
 
-function MobileHeader() {
+function MobileHeader({ displayName }: { displayName: string }) {
   return (
     <HStack
       className="items-center justify-between px-5 py-4"
@@ -171,7 +179,7 @@ function MobileHeader() {
         }}
       >
         <Box className="w-7 h-7 rounded-full bg-purple-600 items-center justify-center">
-          <Text className="text-xs font-bold text-white">J</Text>
+          <Text className="text-xs font-bold text-white">{displayName.charAt(0)}</Text>
         </Box>
         <Text className="text-sm font-semibold text-white">John Pork</Text>
         <Text className="text-xs text-purple-400">▾</Text>
@@ -182,6 +190,23 @@ function MobileHeader() {
 
 export default function DashboardLayout() {
   const pathname = usePathname();
+  const { isAuthenticated, isBootstrapping, user } = useAuth();
+  const displayName =
+    typeof user?.name === "string" && user.name.trim().length > 0
+      ? user.name
+      : typeof user?.email === "string" && user.email.trim().length > 0
+      ? user.email
+      : "User";
+
+  useEffect(() => {
+    if (!isBootstrapping && !isAuthenticated) {
+      router.replace("/");
+    }
+  }, [isAuthenticated, isBootstrapping]);
+
+  if (isBootstrapping || !isAuthenticated) {
+    return null;
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-[#0a0a0a]">
@@ -194,14 +219,14 @@ export default function DashboardLayout() {
 
       {isWeb ? (
         <VStack className="flex-1">
-          <TopNavBar pathname={pathname} />
+          <TopNavBar pathname={pathname} displayName={displayName} />
           <Box className="flex-1">
             <Slot />
           </Box>
         </VStack>
       ) : (
         <VStack className="flex-1">
-          <MobileHeader />
+          <MobileHeader displayName={displayName} />
           <Box className="flex-1">
             <Slot />
           </Box>

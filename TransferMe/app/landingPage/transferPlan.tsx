@@ -10,6 +10,8 @@ import {
   clearSelectedClasses,
   createTransferPlan,
   deleteTransferPlan,
+  getAllInstitutions,
+  getKnownInstitutions,
   getSavedClasses,
   getSelectedClassIds,
   getTransferPlans,
@@ -20,20 +22,24 @@ import {
 export default function TransferPlanScreen() {
   const [university, setUniversity] = useState("");
   const [program, setProgram] = useState("");
+  const [universitySuggestions, setUniversitySuggestions] = useState<string[]>([]);
+  const [isUniversityFocused, setIsUniversityFocused] = useState(false);
   const [savedClasses, setSavedClasses] = useState<SavedClass[]>([]);
   const [selectedClassIds, setSelectedClassIds] = useState<string[]>([]);
   const [plans, setPlans] = useState<TransferPlan[]>([]);
 
   const loadData = useCallback(async () => {
-    const [classes, selectedIds, transferPlans] = await Promise.all([
+    const [classes, selectedIds, transferPlans, allInstitutions] = await Promise.all([
       getSavedClasses(),
       getSelectedClassIds(),
       getTransferPlans(),
+      getAllInstitutions(),
     ]);
 
     setSavedClasses(classes);
     setSelectedClassIds(selectedIds);
     setPlans(transferPlans);
+    setUniversitySuggestions(allInstitutions);
   }, []);
 
   useFocusEffect(
@@ -51,6 +57,18 @@ export default function TransferPlanScreen() {
     (sum, item) => sum + item.credits,
     0
   );
+
+  const filteredUniversitySuggestions = useMemo(() => {
+    const normalized = university.trim().toLowerCase();
+
+    if (!normalized) {
+      return universitySuggestions.slice(0, 6);
+    }
+
+    return universitySuggestions
+      .filter((item) => item.toLowerCase().includes(normalized))
+      .slice(0, 6);
+  }, [university, universitySuggestions]);
 
   const handleGeneratePlan = async () => {
     if (!university.trim() || !program.trim()) {
@@ -135,6 +153,10 @@ export default function TransferPlanScreen() {
           <TextInput
             value={university}
             onChangeText={setUniversity}
+            onFocus={() => setIsUniversityFocused(true)}
+            onBlur={() => {
+              setTimeout(() => setIsUniversityFocused(false), 120);
+            }}
             placeholder="Target university"
             placeholderTextColor="rgba(255,255,255,0.28)"
             style={{
@@ -147,6 +169,36 @@ export default function TransferPlanScreen() {
               paddingVertical: 10,
             }}
           />
+
+          {isUniversityFocused && filteredUniversitySuggestions.length > 0 && (
+            <Box
+              style={{
+                backgroundColor: "rgba(17, 24, 39, 0.95)",
+                borderWidth: 1,
+                borderColor: "rgba(147, 51, 234, 0.35)",
+                borderRadius: 12,
+                overflow: "hidden",
+              }}
+            >
+              {filteredUniversitySuggestions.map((item) => (
+                <TouchableOpacity
+                  key={item}
+                  onPress={() => {
+                    setUniversity(item);
+                    setIsUniversityFocused(false);
+                  }}
+                  style={{
+                    paddingHorizontal: 12,
+                    paddingVertical: 10,
+                    borderBottomWidth: 1,
+                    borderBottomColor: "rgba(147, 51, 234, 0.15)",
+                  }}
+                >
+                  <Text style={{ color: "#e9d5ff", fontSize: 13 }}>{item}</Text>
+                </TouchableOpacity>
+              ))}
+            </Box>
+          )}
 
           <TextInput
             value={program}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   TouchableOpacity,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -19,20 +20,56 @@ import { VStack } from "../components/ui/vstack";
 import { HStack } from "../components/ui/hstack";
 import { Center } from "../components/ui/center";
 import { Divider } from "../components/ui/divider";
+import { useAuth } from "@/src/lib/auth";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordVisible, setPasswordVisible] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [loginError, setLoginError] = useState("");
+  const { signInWithGoogle, signInWithLocal, isAuthenticated, isBootstrapping } = useAuth();
 
-  const handleEmailLogin = () => {
-    // TODO: wire up email/password auth
-    // placeholder route 
-    router.replace("/landingPage");
+  useEffect(() => {
+    if (!isBootstrapping && isAuthenticated) {
+      router.replace("/landingPage");
+    }
+  }, [isAuthenticated, isBootstrapping]);
+
+  const handleEmailLogin = async () => {
+    if (!email.trim()) {
+      setLoginError("Please enter your email.");
+      return;
+    }
+    setLoginError("");
+    setLoginLoading(true);
+    try {
+      await signInWithLocal(email.trim());
+      router.replace("/landingPage");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Sign-in failed. Please try again.";
+      setLoginError(message);
+    } finally {
+      setLoginLoading(false);
+    }
   };
 
-  const handleGoogleSignIn = () => {
-    // TODO:  Google OAuth here
+  const handleGoogleSignIn = async () => {
+    try {
+      setGoogleLoading(true);
+      await signInWithGoogle();
+      router.replace("/landingPage");
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Google sign-in failed. Please try again.";
+      Alert.alert("Sign-in error", message);
+    } finally {
+      setGoogleLoading(false);
+    }
   };
 
   const handleGithubSignIn = () => {
@@ -219,8 +256,15 @@ export default function LoginScreen() {
                   </Box>
                 </VStack>
 
+                {loginError ? (
+                  <Text style={{ color: "#f87171", fontSize: 13, textAlign: "center" }}>
+                    {loginError}
+                  </Text>
+                ) : null}
+
                 <Button
                   onPress={handleEmailLogin}
+                  isDisabled={loginLoading}
                   style={{
                     borderRadius: 14,
                     backgroundColor: "#9333ea",
@@ -228,7 +272,7 @@ export default function LoginScreen() {
                   }}
                 >
                   <ButtonText style={{ color: "#ffffff", fontWeight: "700" }}>
-                    Sign In
+                    {loginLoading ? "Signing In..." : "Sign In"}
                   </ButtonText>
                 </Button>
               </VStack>
@@ -270,7 +314,7 @@ export default function LoginScreen() {
                 }}
               >
                 <ButtonText style={{ color: "#111111", fontWeight: "600" }}>
-                  Google
+                  {googleLoading ? "Signing in..." : "Google"}
                 </ButtonText>
               </Button>
 
@@ -293,7 +337,7 @@ export default function LoginScreen() {
 
             <HStack style={{ justifyContent: "center", alignItems: "center" }}>
               <Text style={{ fontSize: 14, color: "rgba(255,255,255,0.4)" }}>
-                Don't have an account?{" "}
+                Don&apos;t have an account?{" "}
               </Text>
               <TouchableOpacity onPress={handleSignUp}>
                 <Text
