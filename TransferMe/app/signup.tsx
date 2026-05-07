@@ -15,20 +15,70 @@ import { HStack } from "@/components/ui/hstack";
 import { Button, ButtonText } from "@/components/ui/button";
 import { Input, InputField, InputSlot } from "@/components/ui/input";
 import { Pressable } from "@/components/ui/pressable";
+import { useAuth } from "@/src/lib/auth";
+
+const BACKEND_BASE_URL = "http://localhost:8080";
 
 export default function SignUpScreen() {
+  const { signInWithLocal } = useAuth();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [confirmVisible, setConfirmVisible] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const passwordMismatch =
     confirmPassword.length > 0 && password !== confirmPassword;
 
-  const handleSignUp = () => {
-    // TODO: wire up registration
+  const handleSignUp = async () => {
+    setError(null);
+
+    if (!email.trim()) {
+      setError("Email is required.");
+      return;
+    }
+    if (passwordMismatch || password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Step 1: create the account
+      const res = await fetch(`${BACKEND_BASE_URL}/api/users/register/local`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: email.trim(),
+          name: fullName.trim() || undefined,
+        }),
+      });
+
+      if (res.status === 409) {
+        setError("An account with this email already exists.");
+        return;
+      }
+      if (!res.ok) {
+        const text = await res.text();
+        setError(text || "Registration failed. Please try again.");
+        return;
+      }
+
+      // Step 2: open a session and navigate into the app
+      await signInWithLocal(email.trim(), fullName.trim() || undefined);
+      router.replace("/landingPage");
+    } catch (e) {
+      const message =
+        e instanceof Error && e.message
+          ? e.message
+          : "Could not connect to the server. Please try again.";
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -159,12 +209,17 @@ export default function SignUpScreen() {
               )}
             </VStack>
 
+            {error && (
+              <Text className="text-xs text-red-400 text-center">{error}</Text>
+            )}
+
             <Button
               onPress={handleSignUp}
-              className="rounded-xl h-14 bg-purple-700 mt-1"
+              disabled={loading}
+              className={`rounded-xl h-14 mt-1 ${loading ? "bg-purple-700/50" : "bg-purple-700"}`}
             >
               <ButtonText className="text-base font-bold text-white tracking-wide">
-                Create Account
+                {loading ? "Creating Account…" : "Create Account"}
               </ButtonText>
             </Button>
           </VStack>

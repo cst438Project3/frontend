@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   TouchableOpacity,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -19,11 +20,20 @@ import { VStack } from "../components/ui/vstack";
 import { HStack } from "../components/ui/hstack";
 import { Center } from "../components/ui/center";
 import { Divider } from "../components/ui/divider";
+import { useAuth } from "@/src/lib/auth";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordVisible, setPasswordVisible] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const { signInWithGoogle, isAuthenticated, isBootstrapping } = useAuth();
+
+  useEffect(() => {
+    if (!isBootstrapping && isAuthenticated) {
+      router.replace("/landingPage");
+    }
+  }, [isAuthenticated, isBootstrapping]);
 
   const handleEmailLogin = () => {
     // TODO: wire up email/password auth
@@ -31,8 +41,20 @@ export default function LoginScreen() {
     router.replace("/landingPage");
   };
 
-  const handleGoogleSignIn = () => {
-    // TODO:  Google OAuth here
+  const handleGoogleSignIn = async () => {
+    try {
+      setGoogleLoading(true);
+      await signInWithGoogle();
+      router.replace("/landingPage");
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Google sign-in failed. Please try again.";
+      Alert.alert("Sign-in error", message);
+    } finally {
+      setGoogleLoading(false);
+    }
   };
 
   const handleGithubSignIn = () => {
@@ -270,7 +292,7 @@ export default function LoginScreen() {
                 }}
               >
                 <ButtonText style={{ color: "#111111", fontWeight: "600" }}>
-                  Google
+                  {googleLoading ? "Signing in..." : "Google"}
                 </ButtonText>
               </Button>
 
@@ -293,7 +315,7 @@ export default function LoginScreen() {
 
             <HStack style={{ justifyContent: "center", alignItems: "center" }}>
               <Text style={{ fontSize: 14, color: "rgba(255,255,255,0.4)" }}>
-                Don't have an account?{" "}
+                Don&apos;t have an account?{" "}
               </Text>
               <TouchableOpacity onPress={handleSignUp}>
                 <Text

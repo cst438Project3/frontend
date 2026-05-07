@@ -10,6 +10,7 @@ import { HStack } from "@/components/ui/hstack";
 import { VStack } from "@/components/ui/vstack";
 import { Pressable } from "@/components/ui/pressable";
 import { getTransferPlans, TransferPlan } from "@/src/lib/transfer-storage";
+import { useAuth } from "@/src/lib/auth";
 
 const statusColors: Record<string, string> = {
   "In Progress": "#c084fc",
@@ -20,6 +21,12 @@ const statusColors: Record<string, string> = {
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState("All");
   const [plans, setPlans] = useState<TransferPlan[]>([]);
+  const { user } = useAuth();
+
+  const displayName =
+    typeof user?.name === "string" && user.name.trim().length > 0
+      ? user.name
+      : "Student";
 
   useFocusEffect(
     useCallback(() => {
@@ -58,7 +65,7 @@ export default function HomePage() {
               letterSpacing: -0.5,
             }}
           >
-            John Smith 👋
+            {displayName} 👋
           </Text>
 
           <Text style={{ color: "rgba(192,132,252,0.65)", fontSize: 13 }}>

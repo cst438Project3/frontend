@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -6,17 +6,58 @@ import {
   TouchableOpacity,
   TextInput,
   StyleSheet,
+  Alert,
 } from "react-native";
 import { router } from "expo-router";
+import { useAuth } from "@/src/lib/auth";
 
 export default function SettingsScreen() {
-  const [name, setName] = useState("John Smith");
-  const [username, setUsername] = useState("johnsmith");
-  const [email, setEmail] = useState("john@university.edu");
+  const { user, protectedFetch, logout } = useAuth();
+  const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
 
-  const handleSave = () => {
-    // TODO: connect to backend
-    console.log("Saved:", { name, username, email });
+  useEffect(() => {
+    setName(typeof user?.name === "string" ? user.name : "");
+    setEmail(typeof user?.email === "string" ? user.email : "");
+    setUsername(
+      typeof user?.username === "string"
+        ? user.username
+        : typeof user?.email === "string"
+        ? user.email.split("@")[0]
+        : ""
+    );
+  }, [user]);
+
+  const handleSave = async () => {
+    try {
+      const response = await protectedFetch("/api/auth/sync", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name,
+          username,
+          email,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to sync profile.");
+      }
+
+      Alert.alert("Saved", "Your profile was synced to the backend.");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Could not save your profile.";
+      Alert.alert("Save error", message);
+    }
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    router.replace("/");
   };
 
   return (
@@ -78,7 +119,7 @@ export default function SettingsScreen() {
       {/* Logout button */}
       <TouchableOpacity
         style={styles.logoutButton}
-        onPress={() => router.replace("/")}
+        onPress={handleLogout}
         activeOpacity={0.85}
       >
         <Text style={styles.logoutText}>🚪  Log Out</Text>
