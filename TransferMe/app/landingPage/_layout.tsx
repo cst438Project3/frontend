@@ -109,7 +109,7 @@ function BottomTabBar({ pathname }: { pathname: string }) {
       <HStack className="justify-around items-center px-2">
         {tabs.map((tab) => {
           const isActive = pathname === tab.route ||
-            (tab.route === "/(dashboard)" && pathname === "/(dashboard)/index");
+            (tab.route === "/landingPage" && pathname === "/landingPage/index");
           return (
             <Pressable
               key={tab.label}

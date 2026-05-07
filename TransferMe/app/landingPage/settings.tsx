@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -8,15 +8,53 @@ import {
   StyleSheet,
 } from "react-native";
 import { router } from "expo-router";
+import { getMe, getMyProfile, updateMyProfile } from "@/src/services/user-data";
 
 export default function SettingsScreen() {
-  const [name, setName] = useState("John Smith");
-  const [username, setUsername] = useState("johnsmith");
-  const [email, setEmail] = useState("john@university.edu");
+  const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [errorText, setErrorText] = useState("");
+  const [successText, setSuccessText] = useState("");
 
-  const handleSave = () => {
-    // TODO: connect to backend
-    console.log("Saved:", { name, username, email });
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        setLoading(true);
+        setErrorText("");
+        const [me, profile] = await Promise.all([getMe(), getMyProfile()]);
+
+        setName(me?.name || "");
+        setEmail(me?.email || "");
+        setUsername(profile?.major || "");
+      } catch (error) {
+        setErrorText(error instanceof Error ? error.message : "Could not load profile.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadProfile();
+  }, []);
+
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      setErrorText("");
+      setSuccessText("");
+
+      await updateMyProfile({
+        major: username,
+      });
+
+      setSuccessText("Profile updated.");
+    } catch (error) {
+      setErrorText(error instanceof Error ? error.message : "Could not save profile.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -33,6 +71,9 @@ export default function SettingsScreen() {
       {/* Edit  Card */}
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Edit Profile</Text>
+        {loading ? <Text style={styles.label}>Loading profile...</Text> : null}
+        {errorText ? <Text style={[styles.label, { color: "#f87171" }]}>{errorText}</Text> : null}
+        {successText ? <Text style={[styles.label, { color: "#86efac" }]}>{successText}</Text> : null}
 
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Name</Text>
@@ -42,6 +83,7 @@ export default function SettingsScreen() {
             placeholder="Full Name"
             placeholderTextColor="rgba(255,255,255,0.3)"
             style={styles.input}
+            editable={!loading}
           />
         </View>
 
@@ -50,10 +92,11 @@ export default function SettingsScreen() {
           <TextInput
             value={username}
             onChangeText={setUsername}
-            placeholder="Username"
+            placeholder="Major"
             placeholderTextColor="rgba(255,255,255,0.3)"
             autoCapitalize="none"
             style={styles.input}
+            editable={!loading}
           />
         </View>
 
@@ -67,11 +110,12 @@ export default function SettingsScreen() {
             autoCapitalize="none"
             keyboardType="email-address"
             style={styles.input}
+            editable={false}
           />
         </View>
 
-        <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-          <Text style={styles.saveText}>Save Changes</Text>
+        <TouchableOpacity style={styles.saveButton} onPress={handleSave} disabled={saving || loading}>
+          <Text style={styles.saveText}>{saving ? "Saving..." : "Save Changes"}</Text>
         </TouchableOpacity>
       </View>
 

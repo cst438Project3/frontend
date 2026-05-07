@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: transferme-web
+    runtime: static
+    buildCommand: npm ci && npm run build:web
+    staticPublishPath: dist
+    envVars:
+      - key: EXPO_PUBLIC_API_URL
+        value: https://backend-j5c4.onrender.com
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

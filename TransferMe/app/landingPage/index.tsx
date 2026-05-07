@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ScrollView, TouchableOpacity } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
@@ -8,33 +8,8 @@ import { Text } from "@/components/ui/text";
 import { HStack } from "@/components/ui/hstack";
 import { VStack } from "@/components/ui/vstack";
 import { Pressable } from "@/components/ui/pressable";
-
-const PLANS = [
-  {
-    id: "1",
-    university: "University of State",
-    program: "Computer Science",
-    credits: 6,
-    status: "In Progress",
-    sourceCollege: "Community College A",
-  },
-  {
-    id: "2",
-    university: "State Tech University",
-    program: "Software Engineering",
-    credits: 12,
-    status: "Planned",
-    sourceCollege: "Community College A",
-  },
-  {
-    id: "3",
-    university: "Northern University",
-    program: "Data Science",
-    credits: 9,
-    status: "Complete",
-    sourceCollege: "Community College A",
-  },
-];
+import { getMyTransferPaths, TransferPath } from "@/src/services/user-data";
+import { useTransferPlan } from "@/src/context/transfer-plan-context";
 
 const statusColors: Record<string, string> = {
   "In Progress": "#c084fc",
@@ -43,14 +18,45 @@ const statusColors: Record<string, string> = {
 };
 
 export default function HomePage() {
+  const { classes } = useTransferPlan();
   const [activeTab, setActiveTab] = useState("All");
+  const [plans, setPlans] = useState<TransferPath[]>([]);
+  const [loadingPlans, setLoadingPlans] = useState(true);
+
+  useEffect(() => {
+    const loadPlans = async () => {
+      try {
+        setLoadingPlans(true);
+        const data = await getMyTransferPaths();
+        setPlans(data);
+      } catch {
+        setPlans([]);
+      } finally {
+        setLoadingPlans(false);
+      }
+    };
+    loadPlans();
+  }, []);
+
+  const mappedPlans = useMemo(
+    () =>
+      plans.map((plan) => ({
+        id: plan.id,
+        university: plan.toSchool,
+        program: plan.major || "Undeclared",
+        credits: classes.length,
+        status: "In Progress",
+        sourceCollege: plan.fromSchool,
+      })),
+    [plans, classes.length],
+  );
 
   const filteredPlans =
     activeTab === "All"
-      ? PLANS
-      : PLANS.filter((plan) => plan.status === activeTab);
+      ? mappedPlans
+      : mappedPlans.filter((plan) => plan.status === activeTab);
 
-  const totalCredits = PLANS.reduce((sum, plan) => sum + plan.credits, 0);
+  const totalCredits = mappedPlans.reduce((sum, plan) => sum + plan.credits, 0);
 
   return (
     <ScrollView
@@ -103,7 +109,7 @@ export default function HomePage() {
       </HStack>
 
       <HStack space="sm">
-        <StatCard label="Transfer Plans" value={PLANS.length} color="#c084fc" />
+        <StatCard label="Transfer Plans" value={mappedPlans.length} color="#c084fc" />
         <StatCard label="Credits Planned" value={totalCredits} color="#93c5fd" />
         <StatCard label="Requirements Met" value="2/4" color="#86efac" />
       </HStack>
@@ -158,10 +164,14 @@ export default function HomePage() {
         </HStack>
 
         <VStack space="md">
-          {filteredPlans.map((plan) => (
+          {loadingPlans ? (
+            <Text style={{ color: "rgba(255,255,255,0.55)" }}>Loading plans...</Text>
+          ) : filteredPlans.length === 0 ? (
+            <Text style={{ color: "rgba(255,255,255,0.55)" }}>No transfer plans yet.</Text>
+          ) : filteredPlans.map((plan) => (
             <Pressable
               key={plan.id}
-              onPress={() => router.push("/transferPlan" as any)}
+              onPress={() => router.push("/landingPage/transferPlan" as any)}
             >
               <Box
                 style={{

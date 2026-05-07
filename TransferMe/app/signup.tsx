@@ -15,6 +15,7 @@ import { HStack } from "@/components/ui/hstack";
 import { Button, ButtonText } from "@/components/ui/button";
 import { Input, InputField, InputSlot } from "@/components/ui/input";
 import { Pressable } from "@/components/ui/pressable";
+import { registerUser } from "@/src/services/user-data";
 
 export default function SignUpScreen() {
   const [fullName, setFullName] = useState("");
@@ -23,12 +24,36 @@ export default function SignUpScreen() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [confirmVisible, setConfirmVisible] = useState(false);
+  const [registering, setRegistering] = useState(false);
+  const [errorText, setErrorText] = useState("");
 
   const passwordMismatch =
     confirmPassword.length > 0 && password !== confirmPassword;
 
-  const handleSignUp = () => {
-    // TODO: wire up registration
+  const handleSignUp = async () => {
+    if (!fullName.trim() || !email.trim() || !password.trim()) {
+      setErrorText("Name, email, and password are required.");
+      return;
+    }
+    if (passwordMismatch) {
+      setErrorText("Passwords do not match.");
+      return;
+    }
+
+    try {
+      setRegistering(true);
+      setErrorText("");
+      await registerUser({
+        name: fullName.trim(),
+        email: email.trim(),
+        provider: "google",
+      });
+      router.replace("/");
+    } catch (error) {
+      setErrorText(error instanceof Error ? error.message : "Could not register.");
+    } finally {
+      setRegistering(false);
+    }
   };
 
   return (
@@ -161,12 +186,16 @@ export default function SignUpScreen() {
 
             <Button
               onPress={handleSignUp}
+              isDisabled={registering}
               className="rounded-xl h-14 bg-purple-700 mt-1"
             >
               <ButtonText className="text-base font-bold text-white tracking-wide">
-                Create Account
+                {registering ? "Creating..." : "Create Account"}
               </ButtonText>
             </Button>
+            {errorText ? (
+              <Text className="text-xs text-red-400">{errorText}</Text>
+            ) : null}
           </VStack>
           <HStack className="justify-center items-center">
             <Text className="text-sm text-white/40">
